@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-// TO DO: Look into how to store the frame and mat
-//        Try actual frame rendering with shadows and bevels for realism (canvas?)
-//        Add more frame and mat styles, colors, and textures
+// IGNORE THIS HERE I HAVE DONE TESTING WITH THIS CODE
+// This is a simple Flutter application that simulates a painting and framing engine.
+// feel free to try running it
+
 void main() {
   runApp(const FramingApp());
 }
