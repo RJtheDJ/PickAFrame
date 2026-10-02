@@ -7,9 +7,14 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  ditredi: ^2.0.2
+  fluentui_system_icons: ^1.1.273
   flutter:
     sdk: flutter
+  image_cropper: ^12.2.1
   image_picker: ^1.2.3
+  palette_generator: ^0.3.3+7
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:
