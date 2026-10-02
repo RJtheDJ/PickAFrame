@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'dart:typed_data';
-import '../view_models/editor_viewmodel.dart'; 
+import '../models/frame_profile.dart';
 
+/// Paints the four mitred rails of the frame, filling [size]. The mat and
+/// artwork are drawn on top by `FrameRenderer`.
 class GenerativeFramePainter extends CustomPainter {
-  final double frameWidth;
-  final FrameMode mode;
+  final double faceWidth;
   final FrameProfile profile;
-  final Color selectedColor; 
+  final Color color;
+
+  /// When set, painted instead of [color].
   final ui.Image? texture;
 
   GenerativeFramePainter({
-    required this.frameWidth,
-    required this.mode,
+    required this.faceWidth,
     required this.profile,
-    required this.selectedColor,
+    required this.color,
     this.texture,
   });
 
@@ -23,15 +25,15 @@ class GenerativeFramePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
     final double h = size.height;
-    final double fw = frameWidth;
+    final double fw = faceWidth;
 
     Paint getEdgePaint(double rotationAngle) {
       final Paint paint = Paint();
-      if (mode == FrameMode.texture && texture != null) {
+      if (texture != null) {
         final Float64List matrix = (Matrix4.identity()..rotateZ(rotationAngle)).storage;
         paint.shader = ImageShader(texture!, TileMode.repeated, TileMode.repeated, matrix);
       } else {
-        paint.color = selectedColor;
+        paint.color = color;
       }
       return paint;
     }
@@ -54,12 +56,12 @@ class GenerativeFramePainter extends CustomPainter {
             // - Raised inner step/bead ridge (0.65 -> 0.85)
             // - Inner lip shadow falling onto mat (0.85 -> 1.00)
             colors = [
-              Colors.white.withOpacity(0.35),
-              Colors.black.withOpacity(0.15),
-              Colors.black.withOpacity(0.70),
-              Colors.white.withOpacity(0.20),
-              Colors.black.withOpacity(0.20),
-              Colors.black.withOpacity(0.85),
+              Colors.white.withValues(alpha: 0.35),
+              Colors.black.withValues(alpha: 0.15),
+              Colors.black.withValues(alpha: 0.70),
+              Colors.white.withValues(alpha: 0.20),
+              Colors.black.withValues(alpha: 0.20),
+              Colors.black.withValues(alpha: 0.85),
             ];
             stops = [0.0, 0.12, 0.65, 0.78, 0.88, 1.0];
             break;
@@ -67,16 +69,16 @@ class GenerativeFramePainter extends CustomPainter {
           case FrameProfile.slope:
             // smooth convex curve, and a very deep inner crease.
             colors = [
-              Colors.white.withOpacity(0.40), // Brilliant outer highlight
-              Colors.white.withOpacity(0.10), // Gradual mid-tone
-              Colors.black.withOpacity(0.50), // Lower slope shadow
-              Colors.black.withOpacity(0.90), // Very dark inner lip
+              Colors.white.withValues(alpha: 0.40), // Brilliant outer highlight
+              Colors.white.withValues(alpha: 0.10), // Gradual mid-tone
+              Colors.black.withValues(alpha: 0.50), // Lower slope shadow
+              Colors.black.withValues(alpha: 0.90), // Very dark inner lip
             ];
             stops = [0.0, 0.15, 0.85, 1.0];
             break;
 
           case FrameProfile.reverseSlope: 
-            colors = [Colors.white.withOpacity(0.15), Colors.black.withOpacity(0.55)];
+            colors = [Colors.white.withValues(alpha: 0.15), Colors.black.withValues(alpha: 0.55)];
             break;
 
           case FrameProfile.scoop: 
@@ -85,51 +87,51 @@ class GenerativeFramePainter extends CustomPainter {
             // Long concave sweep transitioning to a bright peak (0.06 -> 0.80)
             // Flat inner bead dropping to a dark shadow (0.80 -> 1.00)
             colors = [
-              Colors.white.withOpacity(0.50), // Outer ridge highlight
-              Colors.white.withOpacity(0.50), // Outer ridge edge
-              Colors.black.withOpacity(0.80), // Deep trench shadow
-              Colors.black.withOpacity(0.20), // Mid-curve transition
-              Colors.white.withOpacity(0.60), // Bright sweeping peak
-              Colors.black.withOpacity(0.20), // Inner flat bead
-              Colors.black.withOpacity(0.90), // Final inner drop shadow
+              Colors.white.withValues(alpha: 0.50), // Outer ridge highlight
+              Colors.white.withValues(alpha: 0.50), // Outer ridge edge
+              Colors.black.withValues(alpha: 0.80), // Deep trench shadow
+              Colors.black.withValues(alpha: 0.20), // Mid-curve transition
+              Colors.white.withValues(alpha: 0.60), // Bright sweeping peak
+              Colors.black.withValues(alpha: 0.20), // Inner flat bead
+              Colors.black.withValues(alpha: 0.90), // Final inner drop shadow
             ];
             stops = [0.0, 0.05, 0.06, 0.45, 0.80, 0.85, 1.0];
             break;
 
           case FrameProfile.curve: 
             colors = [
-              Colors.black.withOpacity(0.50), // Outer bottom edge shadow
-              Colors.white.withOpacity(0.60), // Soft top crest highlight
-              Colors.black.withOpacity(0.10), // Mid-curve transition
-              Colors.black.withOpacity(0.70), // Deep inner curve shadow
-              Colors.black.withOpacity(0.20), // Flat inner step transition
-              Colors.black.withOpacity(0.90), // Final drop shadow against the mat
+              Colors.black.withValues(alpha: 0.50), // Outer bottom edge shadow
+              Colors.white.withValues(alpha: 0.60), // Soft top crest highlight
+              Colors.black.withValues(alpha: 0.10), // Mid-curve transition
+              Colors.black.withValues(alpha: 0.70), // Deep inner curve shadow
+              Colors.black.withValues(alpha: 0.20), // Flat inner step transition
+              Colors.black.withValues(alpha: 0.90), // Final drop shadow against the mat
             ];
             stops = [0.0, 0.25, 0.55, 0.85, 0.86, 1.0];
             break;
 
           case FrameProfile.triangular: 
             colors = [
-              Colors.black.withOpacity(0.15), // Outer edge base
-              Colors.white.withOpacity(0.55), // Bright upward peak highlight
-              Colors.black.withOpacity(0.60), // Hard shadow immediately over the crest
-              Colors.black.withOpacity(0.75), // Deepening shadow down the inner slope
-              Colors.black.withOpacity(0.20), // Inner flat lip
-              Colors.black.withOpacity(0.95), // Final inner drop shadow against the mat
+              Colors.black.withValues(alpha: 0.15), // Outer edge base
+              Colors.white.withValues(alpha: 0.55), // Bright upward peak highlight
+              Colors.black.withValues(alpha: 0.60), // Hard shadow immediately over the crest
+              Colors.black.withValues(alpha: 0.75), // Deepening shadow down the inner slope
+              Colors.black.withValues(alpha: 0.20), // Inner flat lip
+              Colors.black.withValues(alpha: 0.95), // Final inner drop shadow against the mat
             ];
             stops = [0.0, 0.49, 0.50, 0.90, 0.91, 1.0];
             break;
 
           case FrameProfile.stepped:
             colors = [
-              Colors.white.withOpacity(0.45), // Ridge 1 Highlight
-              Colors.black.withOpacity(0.50), // Ridge 1 Crease
-              Colors.white.withOpacity(0.45), // Ridge 2 Highlight
-              Colors.black.withOpacity(0.50), // Ridge 2 Crease
-              Colors.white.withOpacity(0.45), // Ridge 3 Highlight
-              Colors.black.withOpacity(0.50), // Ridge 3 Crease
-              Colors.white.withOpacity(0.10), // Inner flat section
-              Colors.black.withOpacity(0.85), // Final drop shadow
+              Colors.white.withValues(alpha: 0.45), // Ridge 1 Highlight
+              Colors.black.withValues(alpha: 0.50), // Ridge 1 Crease
+              Colors.white.withValues(alpha: 0.45), // Ridge 2 Highlight
+              Colors.black.withValues(alpha: 0.50), // Ridge 2 Crease
+              Colors.white.withValues(alpha: 0.45), // Ridge 3 Highlight
+              Colors.black.withValues(alpha: 0.50), // Ridge 3 Crease
+              Colors.white.withValues(alpha: 0.10), // Inner flat section
+              Colors.black.withValues(alpha: 0.85), // Final drop shadow
             ];
             // Notice how the stops are paired tightly to create sharp drops
             stops = [0.0, 0.25, 0.26, 0.55, 0.56, 0.85, 0.86, 1.0];
@@ -165,5 +167,9 @@ class GenerativeFramePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant GenerativeFramePainter oldDelegate) => true; 
+  bool shouldRepaint(covariant GenerativeFramePainter oldDelegate) =>
+      faceWidth != oldDelegate.faceWidth ||
+      profile != oldDelegate.profile ||
+      color != oldDelegate.color ||
+      texture != oldDelegate.texture;
 }
