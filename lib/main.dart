@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'views/editor_screen.dart';
 
 void main() {

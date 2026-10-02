@@ -7,6 +7,7 @@ import '../models/artwork.dart';
 import '../models/frame_design.dart';
 import '../models/frame_finish.dart';
 import '../models/frame_profile.dart';
+import '../models/mat_presets.dart';
 import '../models/mat_spec.dart';
 import '../models/moulding.dart';
 import '../services/artwork_service.dart';
@@ -33,6 +34,8 @@ class EditorViewModel extends ChangeNotifier {
   // Remembered so toggling between colour and texture restores the last pick.
   Color _paintColor = paintColors.first;
   String? _textureUrl;
+
+  bool _matLinked = true;
 
   ui.Image? _texture;
   bool _isLoadingTexture = false;
@@ -75,9 +78,51 @@ class EditorViewModel extends ChangeNotifier {
     _update(_design.copyWith(moulding: _design.moulding.copyWith(faceWidthMm: mm)));
   }
 
-  void setMatWidthMm(double mm) {
-    _update(_design.copyWith(mat: MatSpec.uniform(mm, color: _design.mat.color)));
+  // --- Matting ---
+
+  /// When true, editing one mat border edits all four.
+  bool get matLinked => _matLinked;
+
+  void setMatLinked(bool linked) {
+    _matLinked = linked;
+    if (linked) {
+      // Snap to the top border so the sides start equal.
+      _updateMat(_design.mat.withAllSides(_design.mat.topMm));
+    } else {
+      notifyListeners();
+    }
   }
+
+  void setMatSideMm(MatSide side, double mm) {
+    _updateMat(_matLinked ? _design.mat.withAllSides(mm) : _design.mat.withSide(side, mm));
+  }
+
+  void applyGoldenRatioMat() => _applyUniformMat(goldenMatWidthMm(_design.artworkMm));
+
+  void applyThreeToOneMat() =>
+      _applyUniformMat(threeToOneMatWidthMm(_design.moulding.faceWidthMm));
+
+  /// Keeps the top and sides, and makes the bottom heavier.
+  void applyBottomWeightedMat() {
+    final mat = _design.mat;
+    _matLinked = false;
+    _updateMat(mat.copyWith(bottomMm: _roundMm(mat.topMm * bottomWeightFactor)));
+  }
+
+  void setMountStyle(MountStyle style) => _updateMat(_design.mat.copyWith(style: style));
+  void setMatColor(Color color) => _updateMat(_design.mat.copyWith(color: color));
+  void setMatCoreColor(Color color) => _updateMat(_design.mat.copyWith(coreColor: color));
+  void setInnerMatColor(Color color) => _updateMat(_design.mat.copyWith(innerColor: color));
+  void setRevealMm(double mm) => _updateMat(_design.mat.copyWith(revealMm: mm));
+
+  void _applyUniformMat(double mm) {
+    _matLinked = true;
+    _updateMat(_design.mat.withAllSides(_roundMm(mm)));
+  }
+
+  void _updateMat(MatSpec mat) => _update(_design.copyWith(mat: mat));
+
+  static double _roundMm(double mm) => mm.roundToDouble();
 
   void setArtworkWidthMm(double mm) => _update(_design.withArtworkWidth(mm));
 

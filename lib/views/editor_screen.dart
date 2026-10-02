@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 
 import '../view_models/editor_viewmodel.dart';
-import '../widgets/editor/finish_tray.dart';
-import '../widgets/editor/mm_slider.dart';
-import '../widgets/editor/profile_selector.dart';
+import '../widgets/editor/frame_panel.dart';
+import '../widgets/editor/mat_panel.dart';
 import '../widgets/frame_renderer.dart';
 
-/// The core visualizer: frame preview on top, controls below.
+/// The core visualizer: frame preview on top, tabbed controls below.
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
 
@@ -56,7 +54,7 @@ class _EditorScreenState extends State<EditorScreen> {
               // FRAME PREVIEW
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(24.0),
                   child: FrameRenderer(
                     design: design,
                     frameColor: viewModel.frameColor,
@@ -65,72 +63,38 @@ class _EditorScreenState extends State<EditorScreen> {
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Artwork ${_mm(design.artworkMm)}  ·  Overall ${_mm(design.outerMm)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
               // CONTROL PANEL
-              Container(
-                color: Colors.black87,
-                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    children: [
-                      Row(
+              Theme(
+                data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+                child: Container(
+                  color: Colors.black87,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SafeArea(
+                    top: false,
+                    child: DefaultTabController(
+                      length: 2,
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: ProfileSelector(
-                              selected: design.moulding.profile,
-                              onSelected: viewModel.setProfile,
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              viewModel.mode == FrameMode.texture
-                                  ? FluentIcons.paint_brush_24_regular
-                                  : FluentIcons.image_24_regular,
-                            ),
-                            color: Colors.white,
-                            tooltip: 'Toggle Color/Texture',
-                            onPressed: () => viewModel.setMode(
-                              viewModel.mode == FrameMode.texture
-                                  ? FrameMode.color
-                                  : FrameMode.texture,
+                          const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
+                          SizedBox(
+                            height: 290,
+                            child: TabBarView(
+                              children: [
+                                FramePanel(viewModel: viewModel),
+                                MatPanel(viewModel: viewModel),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      MmSlider(
-                        label: 'Artwork',
-                        value: design.artworkMm.width,
-                        min: 100,
-                        max: 1500,
-                        onChanged: viewModel.setArtworkWidthMm,
-                      ),
-                      MmSlider(
-                        label: 'Frame',
-                        value: design.moulding.faceWidthMm,
-                        min: 10,
-                        max: 120,
-                        activeColor: Colors.brown[400],
-                        onChanged: viewModel.setFrameWidthMm,
-                      ),
-                      MmSlider(
-                        label: 'Mat',
-                        value: design.mat.topMm,
-                        min: 0,
-                        max: 150,
-                        activeColor: const Color(0xFFF5F5F0),
-                        onChanged: viewModel.setMatWidthMm,
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          'Artwork ${_mm(design.artworkMm)}  ·  Overall ${_mm(design.outerMm)}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(height: 60, child: FinishTray(viewModel: viewModel)),
-                    ],
+                    ),
                   ),
                 ),
               ),

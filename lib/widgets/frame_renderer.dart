@@ -4,8 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/frame_design.dart';
+import '../models/mat_spec.dart';
 import '../rendering/frame_layout.dart';
 import '../rendering/generative_frame_painter.dart';
+import '../rendering/mat_painter.dart';
 
 /// Draws a [FrameDesign] at true proportions, scaled to fit its parent.
 class FrameRenderer extends StatelessWidget {
@@ -74,17 +76,43 @@ class FrameRenderer extends StatelessWidget {
                     ),
                   ),
                 ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: MatPainter(
+                      style: design.mat.style,
+                      artworkRect: layout.artworkRect,
+                      topMatWindow: layout.topMatWindow,
+                      bevelWidth: layout.bevelWidth,
+                      coreColor: design.mat.coreColor,
+                      innerColor: design.mat.innerColor,
+                    ),
+                  ),
+                ),
                 Positioned.fromRect(
                   rect: layout.artworkRect,
-                  // The window already has the artwork's aspect ratio, so
-                  // `cover` fills it exactly without cropping.
-                  child: artworkBytes != null
-                      ? Image.memory(
-                          artworkBytes!,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
-                      : const _ArtworkPlaceholder(),
+                  child: DecoratedBox(
+                    // A floated artwork stands off the board and casts a shadow.
+                    decoration: BoxDecoration(
+                      boxShadow: design.mat.style == MountStyle.float
+                          ? [
+                              BoxShadow(
+                                color: Colors.black45,
+                                blurRadius: 4 * layout.pxPerMm,
+                                offset: Offset(1.5, 3) * layout.pxPerMm,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    // The window already has the artwork's aspect ratio, so
+                    // `cover` fills it exactly without cropping.
+                    child: artworkBytes != null
+                        ? Image.memory(
+                            artworkBytes!,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          )
+                        : const _ArtworkPlaceholder(),
+                  ),
                 ),
               ],
             ),
