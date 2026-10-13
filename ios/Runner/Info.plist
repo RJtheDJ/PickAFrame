@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of your artwork to see it framed.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo of your artwork to see it framed.</string>
 </dict>
 </plist>

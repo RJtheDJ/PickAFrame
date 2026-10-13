@@ -4,7 +4,7 @@ import '../../data/mat_catalog.dart';
 import '../../models/mat_spec.dart';
 import '../../view_models/editor_viewmodel.dart';
 import 'color_swatch_row.dart';
-import 'mm_slider.dart';
+import 'labeled_slider.dart';
 
 /// Precision Matting Engine controls: mount style, presets, per-side
 /// borders and mat colours.
@@ -13,7 +13,7 @@ class MatPanel extends StatelessWidget {
 
   final EditorViewModel viewModel;
 
-  static const _maxBorderMm = 200.0;
+  static const _maxBorderMm = 300.0;
 
   @override
   Widget build(BuildContext context) {
@@ -57,28 +57,28 @@ class MatPanel extends StatelessWidget {
           onChanged: viewModel.setMatLinked,
         ),
         if (viewModel.matLinked)
-          MmSlider(
+          LengthSlider(
             label: 'All sides',
-            value: mat.topMm,
-            min: 0,
-            max: _maxBorderMm,
+            valueMm: mat.topMm,
+            minMm: 0,
+            maxMm: _maxBorderMm,
             onChanged: (mm) => viewModel.setMatSideMm(MatSide.top, mm),
           )
         else
           for (final side in MatSide.values)
-            MmSlider(
+            LengthSlider(
               label: _sideLabel(side),
-              value: mat.side(side),
-              min: 0,
-              max: _maxBorderMm,
+              valueMm: mat.side(side),
+              minMm: 0,
+              maxMm: _maxBorderMm,
               onChanged: (mm) => viewModel.setMatSideMm(side, mm),
             ),
         if (mat.style == MountStyle.doubleMat)
-          MmSlider(
+          LengthSlider(
             label: 'Reveal',
-            value: mat.revealMm,
-            min: 2,
-            max: 20,
+            valueMm: mat.revealMm,
+            minMm: 2,
+            maxMm: 20,
             onChanged: viewModel.setRevealMm,
           ),
         const SizedBox(height: 8),

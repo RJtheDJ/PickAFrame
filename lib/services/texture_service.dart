@@ -1,31 +1,44 @@
 import 'dart:ui' as ui;
 
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
-/// Downloads frame textures and keeps them in memory, so re-selecting a
-/// finish is instant.
+/// The decoded images a finish needs: a colour map (or moulding strip), and
+/// for wood and metal the normal and roughness maps used by the GPU shader.
+class FinishImages {
+  const FinishImages(this.albedo, {this.normal, this.roughness});
+
+  final ui.Image albedo;
+  final ui.Image? normal;
+  final ui.Image? roughness;
+}
+
+/// Decodes bundled frame textures and moulding strips and keeps them in
+/// memory, so re-selecting a finish is instant.
 class TextureService {
-  TextureService({http.Client? client}) : _client = client ?? http.Client();
+  TextureService({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
 
-  final http.Client _client;
+  final AssetBundle _bundle;
   final _cache = <String, ui.Image>{};
 
-  Future<ui.Image> load(String url) async {
-    final cached = _cache[url];
+  Future<ui.Image> load(String asset) async {
+    final cached = _cache[asset];
     if (cached != null) return cached;
 
-    final response = await _client.get(
-      Uri.parse(url),
-      headers: {'User-Agent': 'PickAFrameApp/1.0'}, // Required by Poly Haven
-    );
-    if (response.statusCode != 200) {
-      throw Exception('HTTP ${response.statusCode} loading $url');
-    }
-
-    final codec = await ui.instantiateImageCodec(response.bodyBytes);
+    final data = await _bundle.load(asset);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
     final image = (await codec.getNextFrame()).image;
     codec.dispose();
-    return _cache[url] = image;
+    return _cache[asset] = image;
+  }
+
+  /// Loads [assets] as albedo, then optionally normal and roughness maps.
+  Future<FinishImages> loadSet(List<String> assets) async {
+    final images = await Future.wait(assets.map(load));
+    return FinishImages(
+      images[0],
+      normal: images.length > 1 ? images[1] : null,
+      roughness: images.length > 2 ? images[2] : null,
+    );
   }
 
   void dispose() {
@@ -33,6 +46,5 @@ class TextureService {
       image.dispose();
     }
     _cache.clear();
-    _client.close();
   }
 }

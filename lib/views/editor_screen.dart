@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../models/artwork.dart';
+import '../models/perspective.dart';
+import '../models/units.dart';
+import '../services/artwork_service.dart';
+import '../services/document_scanner_service.dart';
 import '../view_models/editor_viewmodel.dart';
 import '../widgets/editor/frame_panel.dart';
 import '../widgets/editor/mat_panel.dart';
 import '../widgets/frame_renderer.dart';
+import 'artwork_crop_screen.dart';
 
 /// The core visualizer: frame preview on top, tabbed controls below.
 class EditorScreen extends StatefulWidget {
@@ -22,6 +29,79 @@ class _EditorScreenState extends State<EditorScreen> {
     super.dispose();
   }
 
+  /// Adds the user's artwork: scanned with automatic edge detection where
+  /// available, or picked from the gallery/camera and cropped by hand.
+  Future<void> _addArtwork() async {
+    final choice = await showModalBottomSheet<_ArtworkSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isArtworkScannerAvailable)
+              ListTile(
+                leading: const Icon(Icons.document_scanner_outlined),
+                title: const Text('Scan artwork'),
+                subtitle: const Text('Finds the edges automatically'),
+                onTap: () => Navigator.pop(context, _ArtworkSource.scan),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, _ArtworkSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, _ArtworkSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
+
+    try {
+      if (choice == _ArtworkSource.scan) {
+        final scanned = await scanArtwork();
+        if (scanned == null) return;
+        // Already cropped and straightened; "Adjust crop" can still trim it.
+        viewModel.setArtwork(Artwork(
+          image: scanned,
+          source: scanned,
+          corners: Quad.full(Size(scanned.width.toDouble(), scanned.height.toDouble())),
+        ));
+        return;
+      }
+
+      final photo = await pickArtworkPhoto(
+        choice == _ArtworkSource.camera ? ImageSource.camera : ImageSource.gallery,
+      );
+      if (photo == null || !mounted) return;
+      final artwork = await Navigator.of(context).push<Artwork>(
+        MaterialPageRoute(builder: (_) => ArtworkCropScreen(source: photo)),
+      );
+      if (artwork != null) viewModel.setArtwork(artwork);
+    } catch (e) {
+      debugPrint('Error adding artwork: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't load that artwork. Please try again.")),
+        );
+      }
+    }
+  }
+
+  /// Reopens the crop on the current artwork's original photo.
+  Future<void> _adjustCrop(Artwork current) async {
+    final artwork = await Navigator.of(context).push<Artwork>(
+      MaterialPageRoute(
+        builder: (_) => ArtworkCropScreen(source: current.source, initialCorners: current.corners),
+      ),
+    );
+    if (artwork != null) viewModel.setArtwork(artwork);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -36,9 +116,15 @@ class _EditorScreenState extends State<EditorScreen> {
             backgroundColor: Colors.black87,
             foregroundColor: Colors.white,
             actions: [
+              if (viewModel.artwork case final artwork?)
+                IconButton(
+                  icon: const Icon(Icons.crop),
+                  onPressed: () => _adjustCrop(artwork),
+                  tooltip: 'Adjust crop',
+                ),
               IconButton(
                 icon: const Icon(Icons.image),
-                onPressed: viewModel.pickArtwork,
+                onPressed: _addArtwork,
                 tooltip: 'Upload Artwork',
               ),
             ],
@@ -57,16 +143,17 @@ class _EditorScreenState extends State<EditorScreen> {
                   padding: const EdgeInsets.all(24.0),
                   child: FrameRenderer(
                     design: design,
-                    frameColor: viewModel.frameColor,
-                    frameTexture: viewModel.frameTexture,
-                    artworkBytes: viewModel.artwork?.bytes,
+                    light: viewModel.light,
+                    finishImages: viewModel.finishImages,
+                    shaderResources: viewModel.shaderResources,
+                    artworkImage: viewModel.artwork?.image,
                   ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Artwork ${_mm(design.artworkMm)}  ·  Overall ${_mm(design.outerMm)}',
+                  'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),
@@ -104,6 +191,6 @@ class _EditorScreenState extends State<EditorScreen> {
       },
     );
   }
-
-  static String _mm(Size size) => '${size.width.round()} × ${size.height.round()} mm';
 }
+
+enum _ArtworkSource { scan, gallery, camera }

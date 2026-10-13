@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 
+import '../../models/frame_finish.dart';
+import '../../models/units.dart';
 import '../../view_models/editor_viewmodel.dart';
+import 'artwork_size_dialog.dart';
 import 'finish_tray.dart';
-import 'mm_slider.dart';
+import 'labeled_slider.dart';
 import 'profile_selector.dart';
 
-/// Moulding controls: profile, finish, and artwork/moulding sizes.
+/// Moulding controls: finish, profile, sizes and lighting.
 class FramePanel extends StatelessWidget {
   const FramePanel({super.key, required this.viewModel});
 
@@ -15,48 +17,71 @@ class FramePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final design = viewModel.design;
+    final isPhotoMoulding = design.finish.kind == FinishKind.ornate;
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 12),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: ProfileSelector(
-                selected: design.moulding.profile,
-                onSelected: viewModel.setProfile,
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                viewModel.mode == FrameMode.texture
-                    ? FluentIcons.paint_brush_24_regular
-                    : FluentIcons.image_24_regular,
-              ),
-              tooltip: 'Toggle Color/Texture',
-              onPressed: () => viewModel.setMode(
-                viewModel.mode == FrameMode.texture ? FrameMode.color : FrameMode.texture,
-              ),
-            ),
+        SegmentedButton<FinishKind>(
+          segments: [
+            for (final kind in FinishKind.values)
+              ButtonSegment(value: kind, label: Text(kind.label)),
           ],
+          selected: {design.finish.kind},
+          onSelectionChanged: (selection) => viewModel.setFinishKind(selection.first),
+          showSelectedIcon: false,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         SizedBox(height: 60, child: FinishTray(viewModel: viewModel)),
         const SizedBox(height: 8),
-        MmSlider(
+        // A photographed moulding brings its own profile.
+        if (isPhotoMoulding)
+          Text(
+            '${design.finish.name}: profile comes from the photographed moulding',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          )
+        else
+          ProfileSelector(
+            selected: design.moulding.profile,
+            onSelected: viewModel.setProfile,
+          ),
+        const SizedBox(height: 8),
+        LengthSlider(
           label: 'Artwork',
-          value: design.artworkMm.width,
-          min: 100,
-          max: 1500,
+          valueMm: design.artworkMm.width,
+          minMm: 100,
+          maxMm: 3000,
+          stepMm: 10,
           onChanged: viewModel.setArtworkWidthMm,
         ),
-        MmSlider(
+        // The slider keeps the photo's proportions; measured sizes go here.
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            icon: const Icon(Icons.straighten, size: 18),
+            label: Text('Exact size: ${formatSize(design.artworkMm)}'),
+            onPressed: () async {
+              final size = await showArtworkSizeDialog(context, design.artworkMm);
+              if (size != null) viewModel.setArtworkSizeMm(size);
+            },
+          ),
+        ),
+        LengthSlider(
           label: 'Frame',
-          value: design.moulding.faceWidthMm,
-          min: 10,
-          max: 120,
+          valueMm: design.moulding.faceWidthMm,
+          minMm: 10,
+          maxMm: 120,
           activeColor: Colors.brown[400],
           onChanged: viewModel.setFrameWidthMm,
+        ),
+        LabeledSlider(
+          label: 'Light',
+          value: viewModel.light.azimuthDeg,
+          min: -180,
+          max: 180,
+          format: (deg) => '${deg.round()}°',
+          activeColor: Colors.amber[300],
+          onChanged: viewModel.setLightAzimuth,
         ),
       ],
     );

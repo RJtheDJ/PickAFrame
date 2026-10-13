@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../data/finish_catalog.dart';
@@ -10,15 +8,19 @@ import '../models/frame_profile.dart';
 import '../models/mat_presets.dart';
 import '../models/mat_spec.dart';
 import '../models/moulding.dart';
-import '../services/artwork_service.dart';
+import '../rendering/lighting.dart';
+import '../rendering/shaded_frame_painter.dart';
 import '../services/texture_service.dart';
-
-enum FrameMode { color, texture }
 
 class EditorViewModel extends ChangeNotifier {
   EditorViewModel({TextureService? textureService})
       : _textures = textureService ?? TextureService() {
-    selectTexture(polyHavenTextureUrl(woodTextureIds.first));
+    selectWood(_wood);
+    FrameShaderResources.load().then((resources) {
+      if (_disposed) return;
+      _shaderResources = resources;
+      notifyListeners();
+    });
   }
 
   final TextureService _textures;
@@ -30,43 +32,60 @@ class EditorViewModel extends ChangeNotifier {
     finish: ColorFinish(Color(0xFF4E342E)),
   );
   Artwork? _artwork;
-
-  // Remembered so toggling between colour and texture restores the last pick.
-  Color _paintColor = paintColors.first;
-  String? _textureUrl;
-
+  Light _light = const Light();
   bool _matLinked = true;
 
-  ui.Image? _texture;
-  bool _isLoadingTexture = false;
-  int _textureRequest = 0;
+  // The last pick of each kind, restored when switching back to that kind.
+  Color _paintColor = paintColors.first;
+  WoodFinish _wood = woodFinishes.first;
+  MetalFinish _metal = metalFinishes.first;
+  PhotoMouldingFinish _photoMoulding = photoMouldings.first;
+
+  FrameShaderResources? _shaderResources;
+  FinishImages? _images;
+  String? _imagesKey;
+  bool _isLoadingImage = false;
+  int _imageRequest = 0;
   bool _disposed = false;
 
   FrameDesign get design => _design;
   Artwork? get artwork => _artwork;
-  bool get isLoadingTexture => _isLoadingTexture;
-  String? get textureUrl => _textureUrl;
+  Light get light => _light;
+  bool get isLoadingTexture => _isLoadingImage;
 
-  FrameMode get mode =>
-      _design.finish is TextureFinish ? FrameMode.texture : FrameMode.color;
+  /// The GPU frame shader, or null while loading or where unsupported (the
+  /// frame is then drawn by the CPU fallback renderer).
+  FrameShaderResources? get shaderResources => _shaderResources;
 
-  /// Solid colour for the frame; also shown while a texture is loading.
-  Color get frameColor => _paintColor;
-
-  /// Texture to paint on the frame, or null to use [frameColor].
-  ui.Image? get frameTexture => mode == FrameMode.texture ? _texture : null;
-
-  void setMode(FrameMode mode) {
-    if (mode == this.mode) return;
-    if (mode == FrameMode.color) {
-      _update(_design.copyWith(finish: ColorFinish(_paintColor)));
-    } else {
-      selectTexture(_textureUrl ?? polyHavenTextureUrl(woodTextureIds.first));
-    }
+  /// The decoded maps or moulding strip for the current finish, or null
+  /// while they load (the frame is then drawn in a flat stand-in colour).
+  FinishImages? get finishImages {
+    final assets = _assetsOf(_design.finish);
+    return assets != null && assets.first == _imagesKey ? _images : null;
   }
+
+  // Moulding & finish
 
   void setProfile(FrameProfile profile) {
     _update(_design.copyWith(moulding: _design.moulding.copyWith(profile: profile)));
+  }
+
+  void setFrameWidthMm(double mm) {
+    _update(_design.copyWith(moulding: _design.moulding.copyWith(faceWidthMm: mm)));
+  }
+
+  void setFinishKind(FinishKind kind) {
+    if (kind == _design.finish.kind) return;
+    switch (kind) {
+      case FinishKind.paint:
+        setColor(_paintColor);
+      case FinishKind.wood:
+        selectWood(_wood);
+      case FinishKind.metal:
+        selectMetal(_metal);
+      case FinishKind.ornate:
+        selectPhotoMoulding(_photoMoulding);
+    }
   }
 
   void setColor(Color color) {
@@ -74,11 +93,77 @@ class EditorViewModel extends ChangeNotifier {
     _update(_design.copyWith(finish: ColorFinish(color)));
   }
 
-  void setFrameWidthMm(double mm) {
-    _update(_design.copyWith(moulding: _design.moulding.copyWith(faceWidthMm: mm)));
+  void selectWood(WoodFinish wood) {
+    _wood = wood;
+    _update(_design.copyWith(finish: wood));
+    _loadImages(_assetsOf(wood)!);
   }
 
-  // --- Matting ---
+  void selectMetal(MetalFinish metal) {
+    _metal = metal;
+    _update(_design.copyWith(finish: metal));
+    _loadImages(_assetsOf(metal)!);
+  }
+
+  /// Also sets the face width to the real moulding's.
+  void selectPhotoMoulding(PhotoMouldingFinish moulding) {
+    _photoMoulding = moulding;
+    _update(_design.copyWith(
+      finish: moulding,
+      moulding: _design.moulding.copyWith(faceWidthMm: moulding.faceWidthMm),
+    ));
+    _loadImages(_assetsOf(moulding)!);
+  }
+
+  void setLightAzimuth(double degrees) {
+    _light = _light.copyWith(azimuthDeg: degrees);
+    notifyListeners();
+  }
+
+  /// Image assets a finish needs: colour, normal and roughness maps for
+  /// textured materials, or the strip for a photographed moulding.
+  static List<String>? _assetsOf(FrameFinish finish) => switch (finish) {
+        WoodFinish(:final textures) || MetalFinish(:final textures) => [
+            textures.albedo,
+            textures.normal,
+            textures.roughness,
+          ],
+        PhotoMouldingFinish(:final asset, :final normalAsset) => [asset, normalAsset],
+        ColorFinish() => null,
+      };
+
+  Future<void> _loadImages(List<String> assets) async {
+    // Any load still in flight is now stale.
+    final request = ++_imageRequest;
+    if (assets.first == _imagesKey && _images != null) {
+      _isLoadingImage = false;
+      return;
+    }
+    _isLoadingImage = true;
+    notifyListeners();
+
+    try {
+      final images = await _textures.loadSet(assets);
+      if (request == _imageRequest) {
+        _images = images;
+        _imagesKey = assets.first;
+      }
+    } catch (e) {
+      debugPrint('Error loading ${assets.first}: $e');
+    }
+
+    if (_disposed || request != _imageRequest) return;
+    _isLoadingImage = false;
+    notifyListeners();
+  }
+
+  void setArtworkWidthMm(double mm) => _update(_design.withArtworkWidth(mm));
+
+  /// Sets the artwork's measured size exactly. A photo can only suggest the
+  /// proportions; the measured size wins and the image is fitted to it.
+  void setArtworkSizeMm(Size size) => _update(_design.copyWith(artworkMm: size));
+
+  // Matting Section
 
   /// When true, editing one mat border edits all four.
   bool get matLinked => _matLinked;
@@ -124,37 +209,10 @@ class EditorViewModel extends ChangeNotifier {
 
   static double _roundMm(double mm) => mm.roundToDouble();
 
-  void setArtworkWidthMm(double mm) => _update(_design.withArtworkWidth(mm));
-
-  Future<void> selectTexture(String url) async {
-    final request = ++_textureRequest;
-    _textureUrl = url;
-    _isLoadingTexture = true;
-    // Keep showing the previous texture until the new one arrives.
-    _update(_design.copyWith(finish: TextureFinish(url)));
-
-    try {
-      final image = await _textures.load(url);
-      if (request == _textureRequest) _texture = image;
-    } catch (e) {
-      debugPrint('Error loading texture: $e');
-    }
-
-    // A newer selection was made while this one loaded; let that one finish.
-    if (_disposed || request != _textureRequest) return;
-    _isLoadingTexture = false;
-    notifyListeners();
-  }
-
-  Future<void> pickArtwork() async {
-    try {
-      final artwork = await pickArtworkFromGallery();
-      if (artwork == null || _disposed) return;
-      _artwork = artwork;
-      _update(_design.withArtworkAspect(artwork.aspectRatio));
-    } catch (e) {
-      debugPrint('Error picking artwork: $e');
-    }
+  /// Shows a newly cropped artwork, matching its proportions.
+  void setArtwork(Artwork artwork) {
+    _artwork = artwork;
+    _update(_design.withArtworkAspect(artwork.aspectRatio));
   }
 
   void _update(FrameDesign design) {

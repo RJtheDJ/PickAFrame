@@ -1,37 +1,86 @@
 import 'dart:ui';
 
-// Finishes offered in the editor's material tray.
-// TODO(realism): the Poly Haven URLs below are preview renders, not tileable
-// diffuse maps, and the floor assets show plank seams. Replace with bundled
-// veneer/metal textures.
+import '../models/frame_finish.dart';
 
-const woodTextureIds = [
-  'wood_cabinet_worn_long', 'wood_floor_deck', 'plywood',
-  'dark_wood', 'laminate_floor', 'wood_table_001', 'coated_pine',
-  'oak_wood_planks', 'teak_veneer', 'white_maple_veneer',
-  'flamed_black_veneer', 'black_oak_veneer', 'walnut_veneer', 'cherry_veneer',
-];
-
-String polyHavenTextureUrl(String assetId) =>
-    'https://cdn.polyhaven.com/asset_img/primary/$assetId.png?height=760';
-
-String polyHavenThumbnailUrl(String assetId) =>
-    'https://cdn.polyhaven.com/asset_img/thumbs/$assetId.png?width=200';
-
-const metalTextureUrls = [
-  // Gold leaf
-  'https://images.pexels.com/photos/30243820/pexels-christina-peko-318814967-30243820.jpg?auto=compress&cs=tinysrgb&w=1200',
-  // Golden paint
-  'https://images.pexels.com/photos/14331332/pexels-naturezarelaxante-14331332.jpg?auto=compress&cs=tinysrgb&w=1200',
-  // Silver brush strokes
-  'https://images.pexels.com/photos/5202288/pexels-photo-5202288.jpeg?auto=compress&cs=tinysrgb&w=1200',
-];
+// Finishes offered in the editor's material tray. Later these will come from
+// vendor catalogues.
 
 const paintColors = [
   Color(0xFF4E342E), // dark brown
   Color(0xFF8D6E63), // light brown
-  Color(0xFF000000), // black
-  Color(0xFFFFFFFF), // white
+  Color(0xFF1C1C1C), // black
+  Color(0xFFF2F0EB), // white
   Color(0xFF263238), // charcoal blue-grey
-  Color(0xFFB71C1C), // oxblood
+  Color(0xFF7B1F1F), // oxblood
+];
+
+// CC0 veneer textures from Poly Haven (polyhaven.com).
+const woodFinishes = [
+  WoodFinish(id: 'cherry', name: 'Cherry', textures: TextureSet('assets/textures/wood/cherry_veneer', sizeMm: 1000)),
+  WoodFinish(id: 'teak', name: 'Teak', textures: TextureSet('assets/textures/wood/teak_veneer', sizeMm: 1000)),
+  WoodFinish(id: 'oak', name: 'Oak', textures: TextureSet('assets/textures/wood/oak_veneer_01', sizeMm: 1830, grainVertical: true)),
+  WoodFinish(id: 'white_oak', name: 'White oak', textures: TextureSet('assets/textures/wood/white_oak_veneer', sizeMm: 500, grainVertical: true)),
+  WoodFinish(id: 'maple', name: 'Maple', textures: TextureSet('assets/textures/wood/white_maple_veneer', sizeMm: 1000)),
+  WoodFinish(id: 'rosewood', name: 'Rosewood', textures: TextureSet('assets/textures/wood/rosewood_veneer1', sizeMm: 2430, grainVertical: true)),
+  WoodFinish(id: 'black_oak', name: 'Black oak', textures: TextureSet('assets/textures/wood/black_oak_veneer', sizeMm: 1000)),
+  WoodFinish(id: 'ebonised', name: 'Ebonised', textures: TextureSet('assets/textures/wood/flamed_black_veneer', sizeMm: 1000)),
+];
+
+// CC0 metal materials from ambientCG (ambientcg.com).
+const metalFinishes = [
+  MetalFinish(
+    name: 'Gold leaf',
+    color: Color(0xFFB8902F),
+    textures: TextureSet('assets/textures/metal/metal048a', sizeMm: 500),
+  ),
+  MetalFinish(
+    name: 'Antique gold',
+    color: Color(0xFF8E6E35),
+    textures: TextureSet('assets/textures/metal/metal048c', sizeMm: 500),
+    tint: Color(0xFFC9A472),
+  ),
+  MetalFinish(
+    name: 'Champagne',
+    color: Color(0xFFBFA878),
+    textures: TextureSet('assets/textures/metal/metal042a', sizeMm: 500),
+    tint: Color(0xFFF2E8DA),
+  ),
+  MetalFinish(
+    name: 'Silver',
+    color: Color(0xFFA9AEB4),
+    textures: TextureSet('assets/textures/metal/metal049a', sizeMm: 500),
+  ),
+  MetalFinish(
+    name: 'Brushed steel',
+    color: Color(0xFF8E9196),
+    textures: TextureSet('assets/textures/metal/metal009', sizeMm: 300),
+  ),
+  MetalFinish(
+    name: 'Aluminium',
+    color: Color(0xFFB4B8BC),
+    textures: TextureSet('assets/textures/metal/metal050c', sizeMm: 500),
+  ),
+  MetalFinish(
+    name: 'Copper',
+    color: Color(0xFF9A5A2C),
+    textures: TextureSet('assets/textures/metal/metal035', sizeMm: 500),
+  ),
+  MetalFinish(
+    name: 'Black metal',
+    color: Color(0xFF2B2B2E),
+    textures: TextureSet('assets/textures/metal/metal046a', sizeMm: 500),
+    tint: Color(0xFF8A8A8C),
+  ),
+];
+
+// TEST ONLY: cut from a reference photo supplied during development, whose
+// licence is unknown. Replace with photos of real vendor mouldings before
+// release (see tools/make_moulding_strip.py).
+const photoMouldings = [
+  PhotoMouldingFinish(
+    id: 'ornate_gold_scroll',
+    name: 'Ornate gold scroll',
+    asset: 'assets/mouldings/ornate_gold_scroll.jpg',
+    faceWidthMm: 60,
+  ),
 ];

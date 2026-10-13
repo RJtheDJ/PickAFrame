@@ -1,17 +1,22 @@
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
-/// An uploaded artwork image, plus its pixel dimensions.
+import 'perspective.dart';
+
+/// The user's artwork: the straightened, cropped image shown in the frame,
+/// plus the photo it came from and the corners picked on it, so the crop can
+/// be adjusted later.
 class Artwork {
-  const Artwork({
-    required this.bytes,
-    required this.pixelWidth,
-    required this.pixelHeight,
-  });
+  const Artwork({required this.image, required this.source, required this.corners});
 
-  final Uint8List bytes;
-  final int pixelWidth;
-  final int pixelHeight;
+  /// Cropped and straightened artwork.
+  final ui.Image image;
+
+  /// The photo as picked (after any rotation).
+  final ui.Image source;
+
+  /// The artwork's corners in [source], in pixels.
+  final Quad corners;
 
   /// Width / height.
-  double get aspectRatio => pixelWidth / pixelHeight;
+  double get aspectRatio => image.width / image.height;
 }

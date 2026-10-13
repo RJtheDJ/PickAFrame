@@ -10,8 +10,7 @@ dependencies:
   fluentui_system_icons: ^1.1.273
   flutter:
     sdk: flutter
-  http: ^1.6.0
-  image_cropper: ^12.2.1
+  google_mlkit_document_scanner: ^0.6.1
   image_picker: ^1.2.3
 dev_dependencies:
   flutter_test:
@@ -20,3 +19,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/textures/wood/
+    - assets/textures/metal/
+    - assets/mouldings/
+
+  shaders:
+    - shaders/frame_material.frag
