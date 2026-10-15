@@ -10,8 +10,10 @@ dependencies:
   fluentui_system_icons: ^1.1.273
   flutter:
     sdk: flutter
+  gal: ^2.3.3
   google_mlkit_document_scanner: ^0.6.1
   image_picker: ^1.2.3
+  share_plus: ^13.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

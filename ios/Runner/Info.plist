@@ -70,5 +70,7 @@
 	<string>Take a photo of your artwork to see it framed.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a photo of your artwork to see it framed.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save your framed artwork mock-ups to your photos.</string>
 </dict>
 </plist>

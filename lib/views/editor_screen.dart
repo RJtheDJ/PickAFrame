@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/artwork.dart';
+import '../models/design_summary.dart';
 import '../models/perspective.dart';
 import '../models/units.dart';
 import '../services/artwork_service.dart';
 import '../services/document_scanner_service.dart';
+import '../services/export_service.dart';
 import '../view_models/editor_viewmodel.dart';
 import '../widgets/editor/frame_panel.dart';
 import '../widgets/editor/mat_panel.dart';
@@ -22,6 +24,8 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> {
   final EditorViewModel viewModel = EditorViewModel();
+  final _exportKey = GlobalKey();
+  bool _exporting = false;
 
   @override
   void dispose() {
@@ -92,6 +96,59 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
+  /// Renders the framed artwork at high resolution, then saves or shares it.
+  Future<void> _export(Rect shareOrigin) async {
+    final action = await showModalBottomSheet<_ExportAction>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (canSaveToGallery)
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Save to gallery'),
+                onTap: () => Navigator.pop(context, _ExportAction.save),
+              ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: const Text('Share'),
+              subtitle: const Text('Includes the frame and mat details'),
+              onTap: () => Navigator.pop(context, _ExportAction.share),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _exporting = true);
+    try {
+      final png = await renderPng(_exportKey);
+      switch (action) {
+        case _ExportAction.save:
+          await saveToGallery(png);
+          messenger.showSnackBar(const SnackBar(content: Text('Saved to your gallery')));
+        case _ExportAction.share:
+          await sharePng(
+            png,
+            message: 'Framed with PickAFrame\n${designSummaryText(viewModel.design)}',
+            origin: shareOrigin,
+          );
+      }
+    } on GalleryPermissionDenied {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Allow access to Photos in Settings to save mock-ups')),
+      );
+    } catch (e) {
+      debugPrint('Export failed: $e');
+      messenger.showSnackBar(const SnackBar(content: Text('Export failed. Please try again.')));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   /// Reopens the crop on the current artwork's original photo.
   Future<void> _adjustCrop(Artwork current) async {
     final artwork = await Navigator.of(context).push<Artwork>(
@@ -116,6 +173,23 @@ class _EditorScreenState extends State<EditorScreen> {
             backgroundColor: Colors.black87,
             foregroundColor: Colors.white,
             actions: [
+              Builder(
+                builder: (buttonContext) => IconButton(
+                  icon: _exporting
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.ios_share),
+                  tooltip: 'Export',
+                  onPressed: _exporting
+                      ? null
+                      : () {
+                          final box = buttonContext.findRenderObject()! as RenderBox;
+                          _export(box.localToGlobal(Offset.zero) & box.size);
+                        },
+                ),
+              ),
               if (viewModel.artwork case final artwork?)
                 IconButton(
                   icon: const Icon(Icons.crop),
@@ -139,15 +213,14 @@ class _EditorScreenState extends State<EditorScreen> {
             children: [
               // FRAME PREVIEW
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: FrameRenderer(
-                    design: design,
-                    light: viewModel.light,
-                    finishImages: viewModel.finishImages,
-                    shaderResources: viewModel.shaderResources,
-                    artworkImage: viewModel.artwork?.image,
-                  ),
+                child: FrameRenderer(
+                  design: design,
+                  light: viewModel.light,
+                  finishImages: viewModel.finishImages,
+                  shaderResources: viewModel.shaderResources,
+                  artworkImage: viewModel.artwork?.image,
+                  wallColor: Colors.blueGrey[900]!,
+                  exportKey: _exportKey,
                 ),
               ),
               Padding(
@@ -194,3 +267,5 @@ class _EditorScreenState extends State<EditorScreen> {
 }
 
 enum _ArtworkSource { scan, gallery, camera }
+
+enum _ExportAction { save, share }

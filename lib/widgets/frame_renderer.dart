@@ -19,6 +19,10 @@ const _frameDepthMm = 25.0;
 /// How far a floated artwork stands off its backing board.
 const _floatHeightMm = 4.0;
 
+/// Wall showing around the frame, as a fraction of the frame's longer side.
+/// Leaves room for the drop shadow and frames exported mock-ups nicely.
+const _wallMargin = 0.07;
+
 /// Draws a [FrameDesign] at true proportions, scaled to fit its parent.
 class FrameRenderer extends StatelessWidget {
   const FrameRenderer({
@@ -28,6 +32,8 @@ class FrameRenderer extends StatelessWidget {
     this.finishImages,
     this.shaderResources,
     this.artworkImage,
+    this.wallColor = const Color(0xFF263238),
+    this.exportKey,
   });
 
   final FrameDesign design;
@@ -44,86 +50,114 @@ class FrameRenderer extends StatelessWidget {
   /// The cropped artwork, or null to show a placeholder.
   final ui.Image? artworkImage;
 
+  /// Wall behind the frame (part of exported mock-ups).
+  final Color wallColor;
+
+  /// Key for the [RepaintBoundary] around the framed piece and its margin of
+  /// wall, which `renderPng` exports.
+  final GlobalKey? exportKey;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final layout = FrameLayout.fit(design, constraints.biggest);
+        // Fit the frame plus its margin of wall into the space available.
+        final available = constraints.biggest;
+        final first = FrameLayout.fit(design, available);
+        final roughMargin = first.outerSize.longestSide * _wallMargin;
+        final layout = FrameLayout.fit(
+          design,
+          Size(available.width - 2 * roughMargin, available.height - 2 * roughMargin),
+        );
+        final margin = layout.outerSize.longestSide * _wallMargin;
         final px = layout.pxPerMm;
 
         return Center(
-          child: Container(
-            width: layout.outerSize.width,
-            height: layout.outerSize.height,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  blurRadius: 12 * px,
-                  offset: light.shadowOffset(_frameDepthMm * px * 0.5),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(painter: _framePainter(layout)),
-                ),
-                Positioned.fromRect(
-                  rect: layout.matRect,
-                  child: ColoredBox(color: design.mat.color),
-                ),
-                Positioned.fromRect(
-                  rect: layout.artworkRect,
-                  child: DecoratedBox(
-                    // A floated artwork stands off the board and casts a shadow.
-                    decoration: BoxDecoration(
-                      boxShadow: design.mat.style == MountStyle.float
-                          ? [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: 3 * px,
-                                offset: light.shadowOffset(_floatHeightMm * px),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    // The window has the artwork's real proportions. The photo
-                    // normally matches them; after a measured size is entered
-                    // it is stretched slightly to fit, which corrects for the
-                    // angle it was taken at.
-                    child: artworkImage != null
-                        ? RawImage(
-                            image: artworkImage,
-                            fit: BoxFit.fill,
-                            filterQuality: FilterQuality.medium,
-                          )
-                        : const _ArtworkPlaceholder(),
-                  ),
-                ),
-                // Bevels and shadows go over the mat and the artwork edges.
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: MatPainter(
-                        style: design.mat.style,
-                        matRect: layout.matRect,
-                        artworkRect: layout.artworkRect,
-                        topMatWindow: layout.topMatWindow,
-                        bevelWidth: layout.bevelWidth,
-                        pxPerMm: px,
-                        coreColor: design.mat.coreColor,
-                        innerColor: design.mat.innerColor,
-                        light: light,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          child: RepaintBoundary(
+            key: exportKey,
+            child: ColoredBox(
+              color: wallColor,
+              child: Padding(
+                padding: EdgeInsets.all(margin),
+                child: _framedPiece(layout, px),
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _framedPiece(FrameLayout layout, double px) {
+    return Container(
+      width: layout.outerSize.width,
+      height: layout.outerSize.height,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.55),
+            blurRadius: 12 * px,
+            offset: light.shadowOffset(_frameDepthMm * px * 0.5),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _framePainter(layout)),
+          ),
+          Positioned.fromRect(
+            rect: layout.matRect,
+            child: ColoredBox(color: design.mat.color),
+          ),
+          Positioned.fromRect(
+            rect: layout.artworkRect,
+            child: DecoratedBox(
+              // A floated artwork stands off the board and casts a shadow.
+              decoration: BoxDecoration(
+                boxShadow: design.mat.style == MountStyle.float
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          blurRadius: 3 * px,
+                          offset: light.shadowOffset(_floatHeightMm * px),
+                        ),
+                      ]
+                    : null,
+              ),
+              // The window has the artwork's real proportions. The photo
+              // normally matches them; after a measured size is entered
+              // it is stretched slightly to fit, which corrects for the
+              // angle it was taken at.
+              child: artworkImage != null
+                  ? RawImage(
+                      image: artworkImage,
+                      fit: BoxFit.fill,
+                      filterQuality: FilterQuality.medium,
+                    )
+                  : const _ArtworkPlaceholder(),
+            ),
+          ),
+          // Bevels and shadows go over the mat and the artwork edges.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: MatPainter(
+                  style: design.mat.style,
+                  matRect: layout.matRect,
+                  artworkRect: layout.artworkRect,
+                  topMatWindow: layout.topMatWindow,
+                  bevelWidth: layout.bevelWidth,
+                  pxPerMm: px,
+                  coreColor: design.mat.coreColor,
+                  innerColor: design.mat.innerColor,
+                  light: light,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

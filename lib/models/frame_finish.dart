@@ -72,11 +72,14 @@ class WoodFinish extends FrameFinish {
 /// by reflections of the room rather than like paint.
 class MetalFinish extends FrameFinish {
   const MetalFinish({
+    required this.id,
     required this.name,
     required this.color,
     required this.textures,
     this.tint = const Color(0xFFFFFFFF),
   });
+
+  final String id;
 
   @override
   final String name;

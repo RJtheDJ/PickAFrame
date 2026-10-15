@@ -29,43 +29,51 @@ const woodFinishes = [
 // CC0 metal materials from ambientCG (ambientcg.com).
 const metalFinishes = [
   MetalFinish(
+    id: 'gold_leaf',
     name: 'Gold leaf',
     color: Color(0xFFB8902F),
     textures: TextureSet('assets/textures/metal/metal048a', sizeMm: 500),
   ),
   MetalFinish(
+    id: 'antique_gold',
     name: 'Antique gold',
     color: Color(0xFF8E6E35),
     textures: TextureSet('assets/textures/metal/metal048c', sizeMm: 500),
     tint: Color(0xFFC9A472),
   ),
   MetalFinish(
+    id: 'champagne',
     name: 'Champagne',
     color: Color(0xFFBFA878),
     textures: TextureSet('assets/textures/metal/metal042a', sizeMm: 500),
     tint: Color(0xFFF2E8DA),
   ),
   MetalFinish(
+    id: 'silver',
     name: 'Silver',
     color: Color(0xFFA9AEB4),
     textures: TextureSet('assets/textures/metal/metal049a', sizeMm: 500),
   ),
   MetalFinish(
+    id: 'brushed_steel',
     name: 'Brushed steel',
     color: Color(0xFF8E9196),
     textures: TextureSet('assets/textures/metal/metal009', sizeMm: 300),
   ),
   MetalFinish(
+    id: 'aluminium',
     name: 'Aluminium',
     color: Color(0xFFB4B8BC),
     textures: TextureSet('assets/textures/metal/metal050c', sizeMm: 500),
   ),
   MetalFinish(
+    id: 'copper',
     name: 'Copper',
     color: Color(0xFF9A5A2C),
     textures: TextureSet('assets/textures/metal/metal035', sizeMm: 500),
   ),
   MetalFinish(
+    id: 'black_metal',
     name: 'Black metal',
     color: Color(0xFF2B2B2E),
     textures: TextureSet('assets/textures/metal/metal046a', sizeMm: 500),
