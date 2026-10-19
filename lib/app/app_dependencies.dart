@@ -5,6 +5,8 @@ import '../repositories/draft_repository.dart';
 import '../repositories/in_memory/in_memory_repositories.dart';
 import '../repositories/order_repository.dart';
 import '../repositories/vendor_repository.dart';
+import '../repositories/firebase/firebase_auth_repository.dart';
+import '../repositories/firebase/firebase_draft_repository.dart';
 
 /// The app's data sources, chosen once at start-up. Screens and view models
 /// get them from [AppScope] instead of creating them, so swapping the
@@ -25,8 +27,15 @@ class AppDependencies {
         orders: InMemoryOrderRepository(),
       );
 
-  // TODO(firebase): add AppDependencies.firebase() returning the Firebase
-  // implementations (lib/repositories/firebase/), after Firebase.initializeApp.
+  /// Live data sources backed by Firebase (Auth & Firestore).
+  factory AppDependencies.firebase() => AppDependencies(
+        auth: FirebaseAuthRepository(),
+        drafts: FirestoreDraftRepository(),
+        vendors: InMemoryVendorRepository(),
+        orders: InMemoryOrderRepository(),
+      );
+
+
 
   final AuthRepository auth;
   final DraftRepository drafts;

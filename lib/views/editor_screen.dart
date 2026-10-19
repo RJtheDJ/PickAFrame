@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../app/app_dependencies.dart';
 import '../models/artwork.dart';
 import '../models/design_summary.dart';
+import '../models/draft.dart';
 import '../models/perspective.dart';
 import '../models/units.dart';
+import '../models/user_profile.dart';
 import '../services/artwork_service.dart';
 import '../services/document_scanner_service.dart';
 import '../services/export_service.dart';
@@ -159,6 +162,118 @@ class _EditorScreenState extends State<EditorScreen> {
     if (artwork != null) viewModel.setArtwork(artwork);
   }
 
+  /// Shows an interactive test panel to verify Firebase Auth and Firestore.
+  Future<void> _showFirebaseTestDialog() async {
+    final dependencies = AppScope.of(context);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        String statusText = '点击下方按钮，直接连线真实的 Firebase 云端进行体检测试：';
+        bool isBusy = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('Firebase 联调体检器', style: TextStyle(fontSize: 18)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(statusText, style: const TextStyle(fontSize: 13)),
+                  if (isBusy) ...[
+                    const SizedBox(height: 16),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isBusy
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            isBusy = true;
+                            statusText = '⏳ 正在向 Firebase Auth 发起注册并写入 users 表...';
+                          });
+                          try {
+                            final email = 'test_${DateTime.now().millisecondsSinceEpoch}@pickaframe.com';
+                            final profile = await dependencies.auth.registerWithEmail(
+                              email: email,
+                              password: 'Password123!',
+                              displayName: 'Test Artist',
+                            );
+                            await dependencies.auth.setRole(UserRole.artist);
+                            setDialogState(() {
+                              isBusy = false;
+                              statusText = '🎉 Auth & Users 写入成功！\n\n'
+                                  '• 注册邮箱: $email\n'
+                                  '• UID: ${profile.uid}\n'
+                                  '• 角色: Artist\n\n'
+                                  '👉 去你的 Firebase Console 刷新，即可看到 users 表！';
+                            });
+                          } catch (e) {
+                            setDialogState(() {
+                              isBusy = false;
+                              statusText = '❌ Auth 报错: $e';
+                            });
+                          }
+                        },
+                  child: const Text('1. 测试 Auth 注册'),
+                ),
+                TextButton(
+                  onPressed: isBusy
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            isBusy = true;
+                            statusText = '⏳ 正在将当前画框存入 Firestore drafts 集合...';
+                          });
+                          try {
+                            final currentUid = dependencies.auth.currentUser?.uid ?? 'guest_test_uid';
+                            final draft = Draft(
+                              id: 'draft_${DateTime.now().millisecondsSinceEpoch}',
+                              ownerUid: currentUid,
+                              title: '测试画框作品 #${DateTime.now().second}',
+                              design: viewModel.design,
+                              updatedAt: DateTime.now(),
+                            );
+                            await dependencies.drafts.saveDraft(draft);
+                            setDialogState(() {
+                              isBusy = false;
+                              statusText = '🎉 草稿写入 Firestore 成功！\n\n'
+                                  '• 草稿 ID: ${draft.id}\n'
+                                  '• 草稿标题: ${draft.title}\n'
+                                  '• 外框宽度: ${draft.design.moulding.faceWidthMm}mm\n\n'
+                                  '👉 去 Firebase Console 刷新，即可看到 drafts 集合！';
+                            });
+                          } catch (e) {
+                            setDialogState(() {
+                              isBusy = false;
+                              statusText = '❌ 草稿写入报错: $e';
+                            });
+                          }
+                        },
+                  child: const Text('2. 测试保存草稿'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('关闭'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -173,6 +288,11 @@ class _EditorScreenState extends State<EditorScreen> {
             backgroundColor: Colors.black87,
             foregroundColor: Colors.white,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.cloud_sync, color: Colors.amberAccent),
+                tooltip: 'Firebase 联调测试',
+                onPressed: _showFirebaseTestDialog,
+              ),
               Builder(
                 builder: (buttonContext) => IconButton(
                   icon: _exporting
