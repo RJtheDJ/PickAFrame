@@ -21,7 +21,7 @@ const _floatHeightMm = 4.0;
 
 /// Wall showing around the frame, as a fraction of the frame's longer side.
 /// Leaves room for the drop shadow and frames exported mock-ups nicely.
-const _wallMargin = 0.07;
+const defaultWallMargin = 0.07;
 
 /// Draws a [FrameDesign] at true proportions, scaled to fit its parent.
 class FrameRenderer extends StatelessWidget {
@@ -33,6 +33,7 @@ class FrameRenderer extends StatelessWidget {
     this.shaderResources,
     this.artworkImage,
     this.wallColor = const Color(0xFF263238),
+    this.wallMargin = defaultWallMargin,
     this.exportKey,
   });
 
@@ -50,8 +51,12 @@ class FrameRenderer extends StatelessWidget {
   /// The cropped artwork, or null to show a placeholder.
   final ui.Image? artworkImage;
 
-  /// Wall behind the frame (part of exported mock-ups).
-  final Color wallColor;
+  /// Wall behind the frame (part of exported mock-ups). Null for none, when
+  /// the frame is placed in a scene such as the in-room preview.
+  final Color? wallColor;
+
+  /// Margin of wall around the frame, as a fraction of its longer side.
+  final double wallMargin;
 
   /// Key for the [RepaintBoundary] around the framed piece and its margin of
   /// wall, which `renderPng` exports.
@@ -64,19 +69,19 @@ class FrameRenderer extends StatelessWidget {
         // Fit the frame plus its margin of wall into the space available.
         final available = constraints.biggest;
         final first = FrameLayout.fit(design, available);
-        final roughMargin = first.outerSize.longestSide * _wallMargin;
+        final roughMargin = first.outerSize.longestSide * wallMargin;
         final layout = FrameLayout.fit(
           design,
           Size(available.width - 2 * roughMargin, available.height - 2 * roughMargin),
         );
-        final margin = layout.outerSize.longestSide * _wallMargin;
+        final margin = layout.outerSize.longestSide * wallMargin;
         final px = layout.pxPerMm;
 
         return Center(
           child: RepaintBoundary(
             key: exportKey,
             child: ColoredBox(
-              color: wallColor,
+              color: wallColor ?? const Color(0x00000000),
               child: Padding(
                 padding: EdgeInsets.all(margin),
                 child: _framedPiece(layout, px),

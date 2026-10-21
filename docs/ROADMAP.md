@@ -20,6 +20,7 @@ Legend: ✅ done · 🟡 groundwork in place · ⬜ not started
 | Precision matting: 4 independent borders, golden ratio, 3:1, bottom-weighted | ✅ | |
 | Mount styles: flat, double, float; board + core colours | ✅ | |
 | Export: save to gallery / share with design details | ✅ | 3000 px PNG |
+| In-room preview: 4 drawn rooms (2 home, 2 gallery), 10 wall colours, true scale + zoom, drag to hang, furniture for scale, room export | ✅ | Edit \| Preview toggle; `RoomPreview` |
 
 ## Next: suggested before the demo
 
@@ -44,7 +45,7 @@ on 20–27 Oct, so keep this list short.
 | Vendors upload their own mouldings | Engine + Backend | 🟡 | `tools/make_moulding_strip.py` does it offline; needs an in-app version. |
 | Quote / pricing from moulding length, mat and glass area | Engine | 🟡 | `FrameDesign.mouldingLengthMm` exists. Needs prices. |
 | Glazing options (UV-protective, non-glare) and archival mat flags | Engine | ⬜ | Add to `FrameDesign`; show glass reflection in the renderer. |
-| In-room preview: environment backgrounds, scale against furniture | Engine | ⬜ | `FrameRenderer` already draws at true mm scale. |
+| In-room preview: photo scenes; a photo of the user's own wall with a scale reference | Engine | ⬜ | Drawn scenes are done (see MVP). |
 | Virtual gallery wall: several framed pieces, apply a preset to all, bulk cost | Engine + UI | ⬜ | |
 | Gallery budgets and bulk discounts | Backend | ⬜ | |
 | Pexels sample artworks to try without uploading | Engine | ⬜ | Proposal 3.3.3 |

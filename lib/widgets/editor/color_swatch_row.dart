@@ -21,7 +21,10 @@ class ColorSwatchRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 72,
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
         Expanded(
           child: SizedBox(
