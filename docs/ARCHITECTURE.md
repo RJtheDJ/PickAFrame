@@ -64,7 +64,7 @@ Rules that keep the layers independent:
 - `FrameRenderer` assembles frame, mat, artwork and wall. Its
   `RepaintBoundary` is what `renderPng` exports at 3000 px.
 
-## Adding Firebase (backend teammate)
+## Adding Firebase (backend teammate) (done)
 
 1. Packages: `firebase_core`, `firebase_auth`, `cloud_firestore`,
    `firebase_storage`, `google_sign_in`. Run `flutterfire configure`.
@@ -120,14 +120,14 @@ From the BASE APP FUNCTION doc and the proposal wireframes (3.2.1):
 
 | Screen | Wireframe | Data |
 |---|---|---|
-| Welcome & Discovery (upload hero, workshop carousel) | a | vendors |
-| Sign up / log in, role selection, location pin | b | auth, vendors |
-| Unified Frame Catalogue (search, filters, grid) | c | catalogue (see roadmap) |
-| Workshop Map Directory | d | vendors |
-| Saved Drafts & Portfolio | e | drafts |
-| Visualizer Workspace (current `EditorScreen`) | f | design, drafts |
-| Virtual Gallery Wall / in-room preview | g | drafts |
-| Order Specification & Production Tracker | h | orders, vendors |
+| Welcome & Discovery (upload hero, workshop carousel) | a | vendors | jasper 
+| Sign up / log in, role selection, location pin | b | auth, vendors | Kah Han - ongoing
+| Unified Frame Catalogue (search, filters, grid) | c | catalogue (see roadmap) | jasper
+| Workshop Map Directory | d | vendors | kah han
+| Saved Drafts & Portfolio | e | drafts | Jasper / Me
+| Visualizer Workspace (current `EditorScreen`) | f | design, drafts | Me done
+| Virtual Gallery Wall / in-room preview | g | drafts | Me - on going
+| Order Specification & Production Tracker | h | orders, vendors | Jasper
 
 Navigation: a bottom bar (Discover · Catalogue · Workshops · Drafts ·
 Profile) for artists and gallery owners; frame shop owners land on a vendor
