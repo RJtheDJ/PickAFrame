@@ -5,9 +5,11 @@ import '../app/app_dependencies.dart';
 import '../models/artwork.dart';
 import '../models/design_summary.dart';
 import '../models/draft.dart';
+import '../models/order.dart';
 import '../models/perspective.dart';
 import '../models/units.dart';
 import '../models/user_profile.dart';
+import '../models/vendor.dart';
 import '../services/artwork_service.dart';
 import '../services/document_scanner_service.dart';
 import '../services/export_service.dart';
@@ -170,14 +172,14 @@ class _EditorScreenState extends State<EditorScreen> {
     if (artwork != null) viewModel.setArtwork(artwork);
   }
 
-  /// Shows an interactive test panel to verify Firebase Auth and Firestore.
+  /// Shows an interactive test panel to verify Firebase operations.
   Future<void> _showFirebaseTestDialog() async {
     final dependencies = AppScope.of(context);
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        String statusText = '点击下方按钮，直接连线真实的 Firebase 云端进行体检测试：';
+        String statusText = 'Select an operation to test live Firebase connectivity:';
         bool isBusy = false;
 
         return StatefulBuilder(
@@ -185,94 +187,200 @@ class _EditorScreenState extends State<EditorScreen> {
             return AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.cloud_done, color: Colors.blue),
+                  Icon(Icons.cloud_done, color: Colors.blueAccent),
                   SizedBox(width: 8),
-                  Text('Firebase 联调体检器', style: TextStyle(fontSize: 18)),
+                  Text('Firebase Diagnostics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(statusText, style: const TextStyle(fontSize: 13)),
-                  if (isBusy) ...[
-                    const SizedBox(height: 16),
-                    const Center(child: CircularProgressIndicator()),
-                  ],
-                ],
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade900,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade700),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Colors.greenAccent,
+                          ),
+                        ),
+                      ),
+                      if (isBusy) ...[
+                        const SizedBox(height: 16),
+                        const Center(child: CircularProgressIndicator()),
+                      ],
+                      const SizedBox(height: 16),
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('1. Test Save Draft'),
+                        onPressed: isBusy
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  isBusy = true;
+                                  statusText = 'Saving current frame design to Firestore drafts...';
+                                });
+                                try {
+                                  final currentUid = dependencies.auth.currentUser?.uid ?? 'guest_test_uid';
+                                  final draft = Draft(
+                                    id: 'draft_${DateTime.now().millisecondsSinceEpoch}',
+                                    ownerUid: currentUid,
+                                    title: 'Custom Frame #${DateTime.now().second}',
+                                    design: viewModel.design,
+                                    updatedAt: DateTime.now(),
+                                  );
+                                  await dependencies.drafts.saveDraft(draft);
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✓ Draft saved to Firestore drafts collection!\n\n'
+                                        '• Draft ID: ${draft.id}\n'
+                                        '• Title: ${draft.title}\n'
+                                        '• Moulding width: ${draft.design.moulding.faceWidthMm}mm\n\n'
+                                        'Check Firebase Console > Firestore > drafts';
+                                  });
+                                } catch (e) {
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✗ Error saving draft:\n$e';
+                                  });
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.assignment_turned_in_outlined),
+                        label: const Text('2. Test Submit Order'),
+                        onPressed: isBusy
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  isBusy = true;
+                                  statusText = 'Submitting test order to Firestore orders...';
+                                });
+                                try {
+                                  final currentUid = dependencies.auth.currentUser?.uid ?? 'guest_test_uid';
+                                  final orderId = 'order_${DateTime.now().millisecondsSinceEpoch}';
+                                  final order = FramingOrder(
+                                    id: orderId,
+                                    draftId: 'draft_${DateTime.now().millisecondsSinceEpoch}',
+                                    customerUid: currentUid,
+                                    vendorId: 'vendor_kl_01',
+                                    specLines: describeDesign(viewModel.design),
+                                    createdAt: DateTime.now(),
+                                    stage: OrderStage.submitted,
+                                    quoteRm: 180.0,
+                                  );
+                                  await dependencies.orders.submitOrder(order);
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✓ Order submitted to Firestore orders collection!\n\n'
+                                        '• Order ID: ${order.id}\n'
+                                        '• Stage: ${order.stage.label}\n'
+                                        '• Quote: RM ${order.quoteRm}\n\n'
+                                        'Check Firebase Console > Firestore > orders';
+                                  });
+                                } catch (e) {
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✗ Error submitting order:\n$e';
+                                  });
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.storefront_outlined),
+                        label: const Text('3. Test Save Vendor'),
+                        onPressed: isBusy
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  isBusy = true;
+                                  statusText = 'Creating sample vendor in Firestore vendors...';
+                                });
+                                try {
+                                  final vendorId = 'vendor_${DateTime.now().millisecondsSinceEpoch}';
+                                  final vendor = Vendor(
+                                    id: vendorId,
+                                    ownerUid: dependencies.auth.currentUser?.uid ?? 'vendor_owner_test',
+                                    name: 'Artisan Custom Framing KL',
+                                    address: 'Jalan Bukit Bintang, Kuala Lumpur',
+                                    latitude: 3.1466,
+                                    longitude: 101.7118,
+                                    phone: '+60 12-345 6789',
+                                    specialties: ['Gilding', 'Museum glazing', 'Shadow boxes'],
+                                    acceptsBulkOrders: true,
+                                  );
+                                  await dependencies.vendors.saveVendor(vendor);
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✓ Vendor saved to Firestore vendors collection!\n\n'
+                                        '• Vendor ID: ${vendor.id}\n'
+                                        '• Name: ${vendor.name}\n'
+                                        '• Location: KL (${vendor.latitude}, ${vendor.longitude})\n\n'
+                                        'Check Firebase Console > Firestore > vendors';
+                                  });
+                                } catch (e) {
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✗ Error saving vendor:\n$e';
+                                  });
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.person_add_outlined),
+                        label: const Text('Test Auth Sign-Up (Optional)'),
+                        onPressed: isBusy
+                            ? null
+                            : () async {
+                                setDialogState(() {
+                                  isBusy = true;
+                                  statusText = 'Registering test user in Firebase Auth & Firestore users...';
+                                });
+                                try {
+                                  final email = 'test_${DateTime.now().millisecondsSinceEpoch}@pickaframe.com';
+                                  final profile = await dependencies.auth.registerWithEmail(
+                                    email: email,
+                                    password: 'Password123!',
+                                    displayName: 'Test Artist',
+                                  );
+                                  await dependencies.auth.setRole(UserRole.artist);
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✓ Auth & users collection verified!\n\n'
+                                        '• Email: $email\n'
+                                        '• UID: ${profile.uid}\n'
+                                        '• Role: artist\n\n'
+                                        'Check Firebase Console > Authentication & Firestore > users';
+                                  });
+                                } catch (e) {
+                                  setDialogState(() {
+                                    isBusy = false;
+                                    statusText = '✗ Auth error:\n$e';
+                                  });
+                                }
+                              },
+                      ),
+                    ],
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
-                  onPressed: isBusy
-                      ? null
-                      : () async {
-                          setDialogState(() {
-                            isBusy = true;
-                            statusText = '⏳ 正在向 Firebase Auth 发起注册并写入 users 表...';
-                          });
-                          try {
-                            final email = 'test_${DateTime.now().millisecondsSinceEpoch}@pickaframe.com';
-                            final profile = await dependencies.auth.registerWithEmail(
-                              email: email,
-                              password: 'Password123!',
-                              displayName: 'Test Artist',
-                            );
-                            await dependencies.auth.setRole(UserRole.artist);
-                            setDialogState(() {
-                              isBusy = false;
-                              statusText = '🎉 Auth & Users 写入成功！\n\n'
-                                  '• 注册邮箱: $email\n'
-                                  '• UID: ${profile.uid}\n'
-                                  '• 角色: Artist\n\n'
-                                  '👉 去你的 Firebase Console 刷新，即可看到 users 表！';
-                            });
-                          } catch (e) {
-                            setDialogState(() {
-                              isBusy = false;
-                              statusText = '❌ Auth 报错: $e';
-                            });
-                          }
-                        },
-                  child: const Text('1. 测试 Auth 注册'),
-                ),
-                TextButton(
-                  onPressed: isBusy
-                      ? null
-                      : () async {
-                          setDialogState(() {
-                            isBusy = true;
-                            statusText = '⏳ 正在将当前画框存入 Firestore drafts 集合...';
-                          });
-                          try {
-                            final currentUid = dependencies.auth.currentUser?.uid ?? 'guest_test_uid';
-                            final draft = Draft(
-                              id: 'draft_${DateTime.now().millisecondsSinceEpoch}',
-                              ownerUid: currentUid,
-                              title: '测试画框作品 #${DateTime.now().second}',
-                              design: viewModel.design,
-                              updatedAt: DateTime.now(),
-                            );
-                            await dependencies.drafts.saveDraft(draft);
-                            setDialogState(() {
-                              isBusy = false;
-                              statusText = '🎉 草稿写入 Firestore 成功！\n\n'
-                                  '• 草稿 ID: ${draft.id}\n'
-                                  '• 草稿标题: ${draft.title}\n'
-                                  '• 外框宽度: ${draft.design.moulding.faceWidthMm}mm\n\n'
-                                  '👉 去 Firebase Console 刷新，即可看到 drafts 集合！';
-                            });
-                          } catch (e) {
-                            setDialogState(() {
-                              isBusy = false;
-                              statusText = '❌ 草稿写入报错: $e';
-                            });
-                          }
-                        },
-                  child: const Text('2. 测试保存草稿'),
-                ),
-                TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('关闭'),
+                  child: const Text('Close'),
                 ),
               ],
             );
@@ -319,7 +427,7 @@ class _EditorScreenState extends State<EditorScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.cloud_sync, color: Colors.amberAccent),
-                tooltip: 'Firebase 联调测试',
+                tooltip: 'Firebase Diagnostics',
                 onPressed: _showFirebaseTestDialog,
               ),
               Builder(

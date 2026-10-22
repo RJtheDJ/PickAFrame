@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:pickaframe_application/repositories/firebase/firebase_order_repository.dart';
+import 'package:pickaframe_application/repositories/firebase/firebase_vendors_repository.dart';
 
 import '../repositories/auth_repository.dart';
 import '../repositories/draft_repository.dart';
@@ -31,8 +33,8 @@ class AppDependencies {
   factory AppDependencies.firebase() => AppDependencies(
         auth: FirebaseAuthRepository(),
         drafts: FirestoreDraftRepository(),
-        vendors: InMemoryVendorRepository(),
-        orders: InMemoryOrderRepository(),
+        vendors: FirestoreVendorRepository(),
+        orders: FirestoreOrderRepository(),
       );
 
 
