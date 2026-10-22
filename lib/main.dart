@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app/app_dependencies.dart';
-import 'views/editor_screen.dart';
+import 'app/app_theme.dart';
+import 'views/welcome_screen.dart';
 //these are for the firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; 
@@ -24,10 +25,11 @@ class FramingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppScope(
       dependencies: dependencies,
-      child: const MaterialApp(
+      child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'PickAFrame',
-        home: EditorScreen(),
+        theme: AppTheme.lightTheme,
+        home: const WelcomeScreen(),
       ),
     );
   }
