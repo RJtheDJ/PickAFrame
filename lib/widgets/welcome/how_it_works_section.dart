@@ -11,31 +11,6 @@ class HowItWorksSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Divider row: ——— SECTION 2 // WORKFLOW ARCHITECTURE ———
-        Row(
-          children: [
-            const Expanded(
-              child: Divider(color: AppPalette.borderLight, thickness: 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'SECTION 2 // WORKFLOW ARCHITECTURE',
-                style: AppTheme.monoStyle(
-                  fontSize: 9.5,
-                  color: AppPalette.mutedZinc,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-            const Expanded(
-              child: Divider(color: AppPalette.borderLight, thickness: 1),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 18),
-
         // Heading row: How it works | 3 STEPS TO PRECISION
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

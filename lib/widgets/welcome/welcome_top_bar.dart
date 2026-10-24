@@ -12,9 +12,11 @@ class WelcomeTopBar extends StatelessWidget {
   const WelcomeTopBar({
     super.key,
     required this.onLoginTap,
+    this.onCatalogTap,
   });
 
   final VoidCallback onLoginTap;
+  final VoidCallback? onCatalogTap;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +82,32 @@ class WelcomeTopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          if (onCatalogTap != null) ...[
+            OutlinedButton.icon(
+              onPressed: onCatalogTap,
+              icon: const Icon(Icons.grid_view_rounded, size: 13),
+              label: Text(
+                'Catalog',
+                style: AppTheme.monoStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.obsidianBlack,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: AppPalette.slateTintSurface,
+                foregroundColor: AppPalette.obsidianBlack,
+                side: const BorderSide(color: AppPalette.borderLight),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           // Live Auth State or "Log in" action
           StreamBuilder<UserProfile?>(
             stream: auth.watchUser(),
