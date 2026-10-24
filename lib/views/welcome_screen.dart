@@ -8,7 +8,7 @@ import '../widgets/welcome/how_it_works_section.dart';
 import '../widgets/welcome/partner_cta_banner.dart';
 import '../widgets/welcome/quick_auth_section.dart';
 import '../widgets/welcome/welcome_top_bar.dart';
-import '../widgets/welcome/workshop_carousel.dart';
+import 'catalog/catalog_screen.dart';
 
 /// Screen 1 (`SPEC // S1 · WELCOME & DISCOVERY`): Landing Page for Pick A-Frame.
 ///
@@ -59,35 +59,6 @@ class WelcomeScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'SPEC 02 // ONBOARDING & CALIBRATION',
-                    style: AppTheme.monoStyle(
-                      fontSize: 10,
-                      color: AppPalette.midnightSlate,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppPalette.slateTintSurface,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: Text(
-                      'STEP 2 OF 4',
-                      style: AppTheme.monoStyle(
-                        fontSize: 9,
-                        color: AppPalette.midnightSlate,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
               Text(
                 currentUser != null
                     ? 'Signed in as ${currentUser.displayName.isNotEmpty ? currentUser.displayName : currentUser.email}'
@@ -101,8 +72,8 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 initialRole != null
-                    ? 'Pre-selected operational profile: ${initialRole.label}. Ready to connect to your teammate\'s SPEC 02 Sign-In screen.'
-                    : 'Navigation hook ready for SPEC 02 (Authentication & Role Setup screen being built by your teammate).',
+                    ? 'Pre-selected operational profile: ${initialRole.label}. Ready to connect to your teammate\'s Sign-In screen.'
+                    : 'Navigation hook ready for Authentication & Role Setup screen.',
                 style: const TextStyle(
                   color: AppPalette.coolSlate,
                   fontSize: 12.5,
@@ -143,90 +114,6 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  void _showWorkshopPreviewSheet(BuildContext context, WorkshopPreviewData workshop) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'KLANG VALLEY DIRECTORY // ${workshop.badge}',
-                style: AppTheme.monoStyle(
-                  fontSize: 10,
-                  color: AppPalette.midnightSlate,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                workshop.name,
-                style: const TextStyle(
-                  color: AppPalette.obsidianBlack,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${workshop.districtAndDistance}  ·  ${workshop.leadTime}',
-                style: const TextStyle(
-                  color: AppPalette.coolSlate,
-                  fontSize: 12.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in workshop.specialties)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppPalette.slateTintSurface,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: Text(
-                        tag,
-                        style: AppTheme.monoStyle(
-                          fontSize: 10,
-                          color: AppPalette.midnightSlate,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(sheetContext),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppPalette.obsidianBlack,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  child: const Text('Close preview'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,6 +124,11 @@ class WelcomeScreen extends StatelessWidget {
             // Sticky Top Spec & Brand Header Bar (without EN | BM switcher)
             WelcomeTopBar(
               onLoginTap: () => _openAuthAndRoleHook(context, isSignUp: false),
+              onCatalogTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                );
+              },
             ),
 
             // Scrollable Landing Page Body
@@ -324,25 +216,8 @@ class WelcomeScreen extends StatelessWidget {
 
                         const SizedBox(height: 22),
 
-                        // Section 2 // Workflow Architecture ("How it works")
+                        // How it works (3 steps)
                         const HowItWorksSection(),
-
-                        const SizedBox(height: 26),
-
-                        // Featured KL framing workshops Carousel
-                        WorkshopCarousel(
-                          onViewAllTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'KL Workshop Directory Map (14 workshops) — sign in to unlock full directory specs.',
-                                ),
-                              ),
-                            );
-                          },
-                          onWorkshopTap: (workshop) =>
-                              _showWorkshopPreviewSheet(context, workshop),
-                        ),
 
                         const SizedBox(height: 24),
 

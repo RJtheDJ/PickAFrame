@@ -61,18 +61,8 @@ class _HeroStagingCardState extends State<HeroStagingCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-                child: Text(
-                  'STAGE YOUR ARTWORK // 1:1 PREVIEW',
-                  style: AppTheme.monoStyle(
-                    fontSize: 10,
-                    color: AppPalette.mutedZinc,
-                  ),
-                ),
-              ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                padding: EdgeInsets.fromLTRB(20, 8, 20, 8),
                 child: Text(
                   'Upload an artwork to preview framing before signing in',
                   style: TextStyle(

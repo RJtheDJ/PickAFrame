@@ -25,30 +25,24 @@ class WorkshopCarousel extends StatelessWidget {
     WorkshopPreviewData(
       id: 'atelier_bangsar',
       name: 'Atelier Bangsar Woodcraft',
-      badge: 'EST. 2011',
       districtAndDistance: 'Bangsar · 4.2 km',
       specialties: ['Museum Glass', 'Bulk Tiers'],
-      leadTime: 'Lead: ~10d',
       textureAsset: 'assets/textures/wood/oak_veneer_01.jpg',
       accentColor: AppPalette.midnightSlate,
     ),
     WorkshopPreviewData(
       id: 'cheras_fine_moulding',
       name: 'Cheras Fine Moulding',
-      badge: 'BATCH SPECIALIST',
       districtAndDistance: 'Cheras · 9.1 km',
       specialties: ['Archival Core', 'Fast Turnaround'],
-      leadTime: 'Lead: ~7d',
       textureAsset: 'assets/textures/wood/teak_veneer.jpg',
       accentColor: AppPalette.darkCharcoal,
     ),
     WorkshopPreviewData(
       id: 'publika_gilding_house',
       name: 'Publika Gilding & Frame',
-      badge: 'CONSERVATION',
       districtAndDistance: 'Solaris Dutamas · 6.4 km',
       specialties: ['Ornate Leaf', 'Shadow Boxes'],
-      leadTime: 'Lead: ~12d',
       textureAsset: 'assets/mouldings/ornate_gold_scroll.jpg',
       accentColor: AppPalette.coolSlate,
     ),
@@ -145,20 +139,16 @@ class WorkshopPreviewData {
   const WorkshopPreviewData({
     required this.id,
     required this.name,
-    required this.badge,
     required this.districtAndDistance,
     required this.specialties,
-    required this.leadTime,
     required this.textureAsset,
     required this.accentColor,
   });
 
   final String id;
   final String name;
-  final String badge;
   final String districtAndDistance;
   final List<String> specialties;
-  final String leadTime;
   final String textureAsset;
   final Color accentColor;
 
@@ -166,12 +156,10 @@ class WorkshopPreviewData {
     return WorkshopPreviewData(
       id: vendor.id,
       name: vendor.name,
-      badge: vendor.acceptsBulkOrders ? 'BATCH SPECIALIST' : 'VERIFIED MAKER',
       districtAndDistance: vendor.address,
       specialties: vendor.specialties.isNotEmpty
           ? vendor.specialties
           : const ['Custom Framing', 'KL Directory'],
-      leadTime: 'Lead: ~7–10d',
       textureAsset: 'assets/textures/wood/oak_veneer_01.jpg',
       accentColor: AppPalette.midnightSlate,
     );
@@ -200,7 +188,7 @@ class _WorkshopCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Workshop Banner Image with EST. 2011 / BATCH SPECIALIST badge
+          // Workshop Banner Image
           SizedBox(
             height: 82,
             width: double.infinity,
@@ -248,28 +236,6 @@ class _WorkshopCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ],
-                  ),
-                ),
-                // Top-left technical badge: [ EST. 2011 ] / [ BATCH SPECIALIST ]
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                    decoration: BoxDecoration(
-                      color: AppPalette.background,
-                      borderRadius: BorderRadius.circular(1.5),
-                      border: Border.all(color: AppPalette.obsidianBlack, width: 0.8),
-                    ),
-                    child: Text(
-                      workshop.badge,
-                      style: AppTheme.monoStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.obsidianBlack,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -338,44 +304,35 @@ class _WorkshopCard extends StatelessWidget {
 
           const Divider(height: 10, thickness: 0.8, color: AppPalette.borderLight),
 
-          // Bottom row: Lead: ~10d | [ View ]
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                workshop.leadTime,
-                style: AppTheme.monoStyle(
-                  fontSize: 9.8,
-                  color: AppPalette.coolSlate,
-                ),
-              ),
-              SizedBox(
-                height: 26,
-                child: OutlinedButton(
-                  onPressed: onViewTap,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppPalette.background,
-                    foregroundColor: AppPalette.obsidianBlack,
-                    side: const BorderSide(color: AppPalette.obsidianBlack, width: 1),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(1.5),
-                    ),
+          // Bottom row: [ View ] aligned to right
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              height: 26,
+              child: OutlinedButton(
+                onPressed: onViewTap,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppPalette.background,
+                  foregroundColor: AppPalette.obsidianBlack,
+                  side: const BorderSide(color: AppPalette.obsidianBlack, width: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(1.5),
                   ),
-                  child: Text(
-                    '[ View ]',
-                    style: AppTheme.monoStyle(
-                      fontSize: 9.8,
-                      fontWeight: FontWeight.w800,
-                      color: AppPalette.obsidianBlack,
-                      letterSpacing: 0.3,
-                    ),
+                ),
+                child: Text(
+                  '[ View ]',
+                  style: AppTheme.monoStyle(
+                    fontSize: 9.8,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.obsidianBlack,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
