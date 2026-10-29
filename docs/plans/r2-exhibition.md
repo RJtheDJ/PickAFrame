@@ -17,7 +17,7 @@ This plan has three phases. Phase 1 is the current work.
 
 | Part | Status |
 |---|---|
-| Task 1: Worker API | 🟡 Routes, Firebase token check, PNG and size limits work locally (`src/index.ts`, checked by hand with a real token). Automated tests not written yet. |
+| Task 1: Worker API | 🟡 Done and deployed to `https://artwork-worker.artwork-worker.workers.dev` on the real `pick-a-frame` bucket; checked by hand with real tokens, locally and deployed. Automated tests not written yet. |
 | Task 2: Flutter storage + Save | ⬜ Not started. `Draft.artworkUrl` already exists. |
 | Task 3: Saved Drafts + Exhibition View | ⬜ Not started. |
 | Task 4: End-to-end walkthrough | ⬜ Not started. |
@@ -202,8 +202,11 @@ Files: modify `lib/views/catalog/catalog_screen.dart`,
       `+`, crop an image, frame it, save; check one R2 object and one
       Firestore draft; save a second one; open both in Exhibition View.
       Stop the Worker, try to save, restart, retry: no half-saved draft.
-- [ ] Switch the binding to the real bucket (`remote: true`) and repeat. Do
-      not deploy from this plan.
+- [x] Deploy the Worker (it uses the real bucket) and repeat the Worker
+      checks against the deployed address: 401 without or with a fake
+      token, owner PUT/GET, another user gets 404 and cannot overwrite,
+      415 for non-PNG, 404 for an unknown asset. Passed 29 Oct 2026. Local
+      `npm run dev` stays on the simulated bucket (no `remote: true`).
 
 ## Phase 2: login and sign-up screens
 

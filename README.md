@@ -28,6 +28,8 @@ flutter test
 - [Roadmap](docs/ROADMAP.md): every planned feature, its owner and its status.
 - [Plan: R2 storage and Exhibition View](docs/plans/r2-exhibition.md): the
   current task list for saving drafts and showing several on one wall.
+- [Artwork Worker](cloudflare/artwork-worker/README.md): what to install and
+  how to run the Cloudflare Worker locally.
 
 ## Asset credits
 
