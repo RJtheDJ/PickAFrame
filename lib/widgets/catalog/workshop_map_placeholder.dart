@@ -1,29 +1,38 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
+import 'moulding_grid_card.dart';
 
 /// Placeholder card for the `KL Workshop Map Directory` section on `CatalogScreen`.
 ///
-/// Renders a stylized Kuala Lumpur map preview (`9 VERIFIED WORKSHOPS CONNECTED`,
-/// `Bangsar · Cheras · Ampang Corridor`) that can be collapsed via `[CLOSE]` or
-/// swapped out when your teammate completes the Google Maps integration.
+/// - When [selectedMoulding] is null, displays the overview (`9 VERIFIED WORKSHOPS CONNECTED`).
+/// - When the user taps a moulding card (e.g. `Gilded 50mm`), [selectedMoulding]
+///   updates this map card to display the origin workshop for that moulding.
+/// - Tapping the map (`onMapTap`) opens the full `Map (KL)` directory page (Image 2).
 class WorkshopMapPlaceholder extends StatelessWidget {
   const WorkshopMapPlaceholder({
     super.key,
     required this.onCloseTap,
     required this.onMapTap,
+    this.selectedMoulding,
   });
 
   final VoidCallback onCloseTap;
   final VoidCallback onMapTap;
+  final CatalogMouldingItem? selectedMoulding;
 
   @override
   Widget build(BuildContext context) {
+    final moulding = selectedMoulding;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppPalette.background,
-        border: Border.all(color: AppPalette.borderLight, width: 1.1),
+        border: Border.all(
+          color: moulding != null ? AppPalette.obsidianBlack : AppPalette.borderLight,
+          width: moulding != null ? 1.4 : 1.1,
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -40,7 +49,9 @@ class WorkshopMapPlaceholder extends StatelessWidget {
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  'KL Workshop Map Directory',
+                  moulding != null
+                      ? 'KL Workshop Map · ${moulding.name}'
+                      : 'KL Workshop Map Directory',
                   style: AppTheme.monoStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -70,13 +81,13 @@ class WorkshopMapPlaceholder extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // Stylized KL Map Canvas Placeholder
+          // Stylized KL Map Canvas Placeholder (Tap to go to Catalog - Map (KL) view)
           GestureDetector(
             onTap: onMapTap,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(5),
               child: SizedBox(
-                height: 148,
+                height: 154,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -86,89 +97,176 @@ class WorkshopMapPlaceholder extends StatelessWidget {
                     ),
 
                     // Subtle district labels matching wireframe
-                    Positioned(
+                    const Positioned(
                       top: 26,
                       left: 16,
                       child: _MapDistrictLabel('KEPONG'),
                     ),
-                    Positioned(
+                    const Positioned(
                       top: 46,
                       right: 26,
                       child: _MapDistrictLabel('WANGSA MAJU'),
                     ),
-                    Positioned(
+                    const Positioned(
                       bottom: 24,
                       left: 14,
                       child: _MapDistrictLabel('PETALING JAYA'),
                     ),
-                    Positioned(
+                    const Positioned(
                       bottom: 18,
                       right: 18,
                       child: _MapDistrictLabel('AMPANG'),
                     ),
 
-                    // Center Overlay Badge: 9 VERIFIED WORKSHOPS CONNECTED
+                    // Center Overlay: either Selected Moulding Workshop Origin or Default Overview
                     Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppPalette.background.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(
-                                color: AppPalette.borderLight,
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
+                      child: moulding != null
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.background.withValues(alpha: 0.94),
+                                    borderRadius: BorderRadius.circular(3),
+                                    border: Border.all(
+                                      color: AppPalette.borderLight,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'FRAME SOURCE · ${moulding.name.toUpperCase()}',
+                                    style: AppTheme.monoStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppPalette.coolSlate,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.obsidianBlack,
+                                    borderRadius: BorderRadius.circular(5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppPalette.obsidianBlack.withValues(alpha: 0.18),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on_rounded,
+                                        size: 15,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          moulding.workshopName,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.background.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    '${moulding.workshopDistrict} · Tap map for details →',
+                                    style: const TextStyle(
+                                      color: AppPalette.obsidianBlack,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.background.withValues(alpha: 0.94),
+                                    borderRadius: BorderRadius.circular(3),
+                                    border: Border.all(
+                                      color: AppPalette.borderLight,
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    '9 VERIFIED WORKSHOPS CONNECTED',
+                                    style: AppTheme.monoStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppPalette.obsidianBlack,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.background.withValues(alpha: 0.78),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: const Text(
+                                    'Bangsar · Cheras · Ampang Corridor',
+                                    style: TextStyle(
+                                      color: AppPalette.obsidianBlack,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Kuala Lumpur',
+                                  style: TextStyle(
+                                    color: AppPalette.darkCharcoal,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ],
                             ),
-                            child: Text(
-                              '9 VERIFIED WORKSHOPS CONNECTED',
-                              style: AppTheme.monoStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: AppPalette.obsidianBlack,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppPalette.background.withValues(alpha: 0.78),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                            child: const Text(
-                              'Bangsar · Cheras · Ampang Corridor',
-                              style: TextStyle(
-                                color: AppPalette.obsidianBlack,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Kuala Lumpur',
-                            style: TextStyle(
-                              color: AppPalette.darkCharcoal,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),

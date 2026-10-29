@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
-import '../../widgets/catalog/active_exhibition_banner.dart';
 import '../../widgets/catalog/catalog_bottom_nav_bar.dart';
 import '../../widgets/catalog/catalog_filter_sheet.dart';
 import '../../widgets/catalog/catalog_filter_sort_bar.dart';
 import '../../widgets/catalog/catalog_header_section.dart';
+import '../../widgets/catalog/catalog_map_view.dart';
 import '../../widgets/catalog/moulding_grid_card.dart';
 import '../../widgets/catalog/workshop_map_placeholder.dart';
+import '../editor_screen.dart';
+import '../orders/my_orders_screen.dart';
 
 /// The 4 sort options for the Unified Frame Catalogue.
 enum CatalogSortOption {
@@ -22,7 +24,7 @@ enum CatalogSortOption {
 }
 
 /// Screen c (`Unified Frame Catalogue`): Search, Filters, Sort, 2×2 Moulding Grid,
-/// Active Exhibition Banner, and KL Workshop Map Directory Placeholder.
+/// KL Workshop Map Directory Placeholder, and `Catalog - Map (KL)` Directory View.
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
 
@@ -32,13 +34,14 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _catalogScrollController = ScrollController();
 
   int _selectedTopTab = 0; // 0: Catalog, 1: Map (KL), 2: Drafts (12)
   int _selectedBottomTab = 1; // 1: Catalog
   CatalogSortOption _sortOption = CatalogSortOption.newest;
-  CatalogFilterState _filterState = CatalogFilterState.empty; // Starts empty (no filter chips initially)
+  CatalogFilterState _filterState = CatalogFilterState.empty; // Starts empty
   bool _showMapDirectory = true;
-  final Set<String> _favoritedIds = <String>{};
+  CatalogMouldingItem? _selectedMoulding;
 
   static const List<CatalogMouldingItem> _mouldingItems = [
     CatalogMouldingItem(
@@ -49,6 +52,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
       pricePerMetreRm: 38,
       frameColor: Color(0xFF422618),
       materialClass: 'Wood (Hardwood)',
+      workshopName: 'Atelier Bangsar Woodcraft',
+      workshopDistrict: 'Bangsar · 4.2 km',
     ),
     CatalogMouldingItem(
       id: 'black_20',
@@ -58,6 +63,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
       pricePerMetreRm: 24,
       frameColor: Color(0xFF141619),
       materialClass: 'Aluminium Metal',
+      workshopName: 'Atelier Bangsar Woodcraft',
+      workshopDistrict: 'Bangsar · 4.2 km',
     ),
     CatalogMouldingItem(
       id: 'gilded_50',
@@ -67,6 +74,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
       pricePerMetreRm: 96,
       frameColor: Color(0xFF8C6D23),
       materialClass: 'Gilded / Foil Leaf',
+      workshopName: 'Cheras Fine Mouldings & Gilded Arts',
+      workshopDistrict: 'Cheras · 9.0 km',
     ),
     CatalogMouldingItem(
       id: 'oak_25',
@@ -76,21 +85,16 @@ class _CatalogScreenState extends State<CatalogScreen> {
       pricePerMetreRm: 31,
       frameColor: Color(0xFFC59B6D),
       materialClass: 'Wood (Hardwood)',
+      workshopName: 'Ampang Artisan Framing',
+      workshopDistrict: 'Ampang · 12.4 km',
     ),
   ];
 
   @override
   void dispose() {
     _searchController.dispose();
+    _catalogScrollController.dispose();
     super.dispose();
-  }
-
-  void _toggleFavorite(String id) {
-    setState(() {
-      if (!_favoritedIds.remove(id)) {
-        _favoritedIds.add(id);
-      }
-    });
   }
 
   /// Dynamically derives the active filter chips from [_filterState].
@@ -296,6 +300,24 @@ class _CatalogScreenState extends State<CatalogScreen> {
     return filtered;
   }
 
+  void _onMouldingCardTap(CatalogMouldingItem item) {
+    setState(() {
+      _selectedMoulding = item;
+      _showMapDirectory = true;
+    });
+
+    // Smoothly scroll down so the user immediately sees the frame's workshop on the map card
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_catalogScrollController.hasClients) {
+        _catalogScrollController.animateTo(
+          _catalogScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleItems = _computeVisibleItems();
@@ -312,6 +334,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
               searchController: _searchController,
               onSearchChanged: (_) => setState(() {}),
               onBackTap: () {
+                if (_selectedTopTab != 0) {
+                  setState(() => _selectedTopTab = 0);
+                  return;
+                }
                 if (Navigator.of(context).canPop()) {
                   Navigator.of(context).pop();
                 }
@@ -323,150 +349,139 @@ class _CatalogScreenState extends State<CatalogScreen> {
               },
             ),
 
-            // Scrollable Catalogue Content
+            // Body Content switches between Catalog (0) and Map (KL) (1)
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Filter & Sort Controls (starts with 0 filter chips)
-                        CatalogFilterSortBar(
-                          activeFilterChips: _activeFilterChips,
-                          sortLabel: _sortOption.label,
-                          onFiltersTap: _openFilterSheet,
-                          onRemoveChip: _removeFilterChip,
-                          onSortTap: _openSortSheet,
-                        ),
+              child: _selectedTopTab == 1
+                  ? CatalogMapView(
+                      selectedMoulding: _selectedMoulding,
+                      onRouteToOrderTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EditorScreen(),
+                          ),
+                        );
+                      },
+                    )
+                  : SingleChildScrollView(
+                      controller: _catalogScrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 480),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Filter & Sort Controls (starts with 0 filter chips)
+                              CatalogFilterSortBar(
+                                activeFilterChips: _activeFilterChips,
+                                sortLabel: _sortOption.label,
+                                onFiltersTap: _openFilterSheet,
+                                onRemoveChip: _removeFilterChip,
+                                onSortTap: _openSortSheet,
+                              ),
 
-                        const SizedBox(height: 14),
+                              const SizedBox(height: 14),
 
-                        // 2×2 Moulding Catalogue Grid (or empty state when filtered out)
-                        if (visibleItems.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 28,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppPalette.slateTintSurface,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AppPalette.borderLight),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons.filter_alt_off_outlined,
-                                  size: 26,
-                                  color: AppPalette.coolSlate,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'No mouldings match your active filters',
-                                  style: TextStyle(
-                                    color: AppPalette.obsidianBlack,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
+                              // 2×2 Moulding Catalogue Grid
+                              if (visibleItems.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 28,
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                TextButton(
-                                  onPressed: () => setState(
-                                    () => _filterState = CatalogFilterState.empty,
-                                  ),
-                                  child: Text(
-                                    'Reset filters',
-                                    style: AppTheme.monoStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppPalette.midnightSlate,
+                                  decoration: BoxDecoration(
+                                    color: AppPalette.slateTintSurface,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: AppPalette.borderLight,
                                     ),
                                   ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.filter_alt_off_outlined,
+                                        size: 26,
+                                        color: AppPalette.coolSlate,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'No mouldings match your active filters',
+                                        style: TextStyle(
+                                          color: AppPalette.obsidianBlack,
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextButton(
+                                        onPressed: () => setState(
+                                          () => _filterState =
+                                              CatalogFilterState.empty,
+                                        ),
+                                        child: Text(
+                                          'Reset filters',
+                                          style: AppTheme.monoStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppPalette.midnightSlate,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: visibleItems.length,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 0.72,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final item = visibleItems[index];
+                                    return MouldingGridCard(
+                                      item: item,
+                                      isSelected:
+                                          _selectedMoulding?.id == item.id,
+                                      onAddTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const EditorScreen(),
+                                          ),
+                                        );
+                                      },
+                                      onCardTap: () => _onMouldingCardTap(item),
+                                    );
+                                  },
+                                ),
+
+                              if (_showMapDirectory) ...[
+                                const SizedBox(height: 16),
+
+                                // KL Workshop Map Directory Card:
+                                // - Shows origin workshop when a moulding card is clicked
+                                // - Clicking the map opens the full Map (KL) view (Image 2)
+                                WorkshopMapPlaceholder(
+                                  selectedMoulding: _selectedMoulding,
+                                  onCloseTap: () => setState(() {
+                                    _showMapDirectory = false;
+                                    _selectedMoulding = null;
+                                  }),
+                                  onMapTap: () {
+                                    setState(() => _selectedTopTab = 1);
+                                  },
                                 ),
                               ],
-                            ),
-                          )
-                        else
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: visibleItems.length,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.72,
-                            ),
-                            itemBuilder: (context, index) {
-                              final item = visibleItems[index];
-                              return MouldingGridCard(
-                                item: item,
-                                isFavorited: _favoritedIds.contains(item.id),
-                                onFavoriteToggle: () => _toggleFavorite(item.id),
-                                onAddTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Selected ${item.name} (RM ${item.pricePerMetreRm}/m)',
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onCardTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${item.name} — RM ${item.pricePerMetreRm}/m',
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
+                            ],
                           ),
-
-                        const SizedBox(height: 16),
-
-                        // Active Exhibition: KL Spring Show (Dashed Banner)
-                        ActiveExhibitionBanner(
-                          onInspectDraftTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Inspect Draft — Active Exhibition: KL Spring Show',
-                                ),
-                              ),
-                            );
-                          },
                         ),
-
-                        if (_showMapDirectory) ...[
-                          const SizedBox(height: 16),
-
-                          // KL Workshop Map Directory Placeholder Card
-                          WorkshopMapPlaceholder(
-                            onCloseTap: () =>
-                                setState(() => _showMapDirectory = false),
-                            onMapTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Map placeholder — ready for teammate\'s Google Maps widget',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -478,11 +493,21 @@ class _CatalogScreenState extends State<CatalogScreen> {
             Navigator.of(context).pop();
             return;
           }
+          if (index == 1 && _selectedTopTab != 0) {
+            setState(() => _selectedTopTab = 0);
+            return;
+          }
+          if (index == 3) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+            );
+            return;
+          }
           setState(() => _selectedBottomTab = index);
         },
         onCenterAddTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Quick Add Action (+)')),
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const EditorScreen()),
           );
         },
       ),

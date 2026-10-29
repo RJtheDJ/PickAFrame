@@ -12,6 +12,8 @@ class CatalogMouldingItem {
     required this.pricePerMetreRm,
     required this.frameColor,
     required this.materialClass,
+    required this.workshopName,
+    required this.workshopDistrict,
   });
 
   final String id;
@@ -21,30 +23,29 @@ class CatalogMouldingItem {
   final int pricePerMetreRm;
   final Color frameColor;
   final String materialClass;
+  final String workshopName;
+  final String workshopDistrict;
 
   String get widthLabel => '${widthMm.round()}mm';
 }
 
 /// Simplified, clean 2×2 Moulding Catalogue Grid Card (`Screen c`).
 ///
-/// Per user instructions (Image 3):
-/// - Removed top-left badges (`KL READY`, `POPULAR`, `MUSEUM`)
-/// - Removed `MLD-xxxx` codes and `rebate XXmm`
-/// - Removed material subtitle lines (`Natural grain · Hardwood`, etc.)
-/// - Removed inner thumbnail black tag (`MITRE 45°`, `MATTE`, `LEAF`, `RAW`) and bottom-right circle icon
+/// - Heart icon removed per user feedback.
+/// - Tapping the card/frame preview (`onCardTap`) highlights the card and shows
+///   which workshop this moulding comes from on the map directory below.
+/// - Tapping `[ + ]` (`onAddTap`) opens the Frame Editor (`EditorScreen`).
 class MouldingGridCard extends StatelessWidget {
   const MouldingGridCard({
     super.key,
     required this.item,
-    required this.isFavorited,
-    required this.onFavoriteToggle,
+    required this.isSelected,
     required this.onAddTap,
     required this.onCardTap,
   });
 
   final CatalogMouldingItem item;
-  final bool isFavorited;
-  final VoidCallback onFavoriteToggle;
+  final bool isSelected;
   final VoidCallback onAddTap;
   final VoidCallback onCardTap;
 
@@ -52,12 +53,25 @@ class MouldingGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onCardTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: AppPalette.background,
-          border: Border.all(color: AppPalette.borderLight, width: 1.1),
+          border: Border.all(
+            color: isSelected ? AppPalette.obsidianBlack : AppPalette.borderLight,
+            width: isSelected ? 1.8 : 1.1,
+          ),
           borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +84,9 @@ class MouldingGridCard extends StatelessWidget {
                   color: AppPalette.slateTintSurface,
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color: AppPalette.borderLight.withValues(alpha: 0.7),
+                    color: isSelected
+                        ? AppPalette.obsidianBlack.withValues(alpha: 0.35)
+                        : AppPalette.borderLight.withValues(alpha: 0.7),
                     width: 0.8,
                   ),
                 ),
@@ -132,7 +148,7 @@ class MouldingGridCard extends StatelessWidget {
 
             const Divider(height: 12, thickness: 0.8, color: AppPalette.borderLight),
 
-            // 3. Bottom Price & Action Row: per metre RM 38/m | Heart | [+]
+            // 3. Bottom Price & Action Row: per metre RM 38/m | [+] (Heart removed)
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -162,20 +178,6 @@ class MouldingGridCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Favorite Heart Button
-                InkWell(
-                  onTap: onFavoriteToggle,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      size: 18,
-                      color: isFavorited ? AppPalette.midnightSlate : AppPalette.coolSlate,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
                 // Dark Square [ + ] Button
                 SizedBox(
                   width: 34,
