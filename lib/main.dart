@@ -12,6 +12,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Load Poppins font family for the entire system (non-blocking if offline).
+  await AppTheme.ensurePoppinsLoaded();
   // Swap for AppDependencies.firebase() once Firebase is set up.
   runApp(FramingApp(dependencies: AppDependencies.firebase()));
 }

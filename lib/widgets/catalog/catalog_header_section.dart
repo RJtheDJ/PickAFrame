@@ -86,66 +86,67 @@ class CatalogHeaderSection extends StatelessWidget {
           ),
         ),
 
-        // 2. Clean Brand Row: [A] Pick A-Frame PRECISION FRAMING
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: const BoxDecoration(
-            color: AppPalette.background,
-            border: Border(
-              bottom: BorderSide(color: AppPalette.borderLight, width: 0.8),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: AppPalette.background,
-                  border: Border.all(color: AppPalette.obsidianBlack, width: 2),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'A',
-                  style: TextStyle(
-                    color: AppPalette.obsidianBlack,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
-                ),
+        // 2. Clean Brand Row: [A] Pick A-Frame PRECISION FRAMING (shown on Catalog tab)
+        if (selectedTabIndex != 1)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: AppPalette.background,
+              border: Border(
+                bottom: BorderSide(color: AppPalette.borderLight, width: 0.8),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Pick A-Frame',
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: AppPalette.background,
+                    border: Border.all(color: AppPalette.obsidianBlack, width: 2),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'A',
                     style: TextStyle(
                       color: AppPalette.obsidianBlack,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                      height: 1.1,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
                     ),
                   ),
-                  Text(
-                    'PRECISION FRAMING',
-                    style: AppTheme.monoStyle(
-                      fontSize: 7.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.mutedZinc,
-                      letterSpacing: 1.0,
-                      height: 1.2,
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Pick A-Frame',
+                      style: TextStyle(
+                        color: AppPalette.obsidianBlack,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    Text(
+                      'PRECISION FRAMING',
+                      style: AppTheme.monoStyle(
+                        fontSize: 7.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.mutedZinc,
+                        letterSpacing: 1.0,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
 
         // 3. Segmented Switcher + Search Bar inside padded body header
         Padding(
@@ -217,10 +218,12 @@ class CatalogHeaderSection extends StatelessWidget {
                           color: AppPalette.obsidianBlack,
                           fontSize: 13,
                         ),
-                        decoration: const InputDecoration(
-                          hintText: 'Search',
+                        decoration: InputDecoration(
+                          hintText: selectedTabIndex == 1 ? 'Bangsar, 59100' : 'Search',
                           hintStyle: TextStyle(
-                            color: AppPalette.mutedZinc,
+                            color: selectedTabIndex == 1
+                                ? AppPalette.obsidianBlack
+                                : AppPalette.mutedZinc,
                             fontSize: 13,
                           ),
                           border: InputBorder.none,
