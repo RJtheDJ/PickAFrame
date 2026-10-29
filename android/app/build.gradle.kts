@@ -1,3 +1,11 @@
+import java.util.Properties
+
+// Secrets that must not be committed, e.g. MAPS_API_KEY=... for Google Maps.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -26,6 +34,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Without a key the map shows grey tiles instead of crashing the app.
+        manifestPlaceholders["MAPS_API_KEY"] =
+            localProperties.getProperty("MAPS_API_KEY", "MISSING_MAPS_API_KEY")
     }
 
     buildTypes {

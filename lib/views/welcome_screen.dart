@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-import '../app/app_dependencies.dart';
 import '../app/app_theme.dart';
 import '../models/user_profile.dart';
 import '../widgets/welcome/hero_staging_card.dart';
@@ -8,6 +6,8 @@ import '../widgets/welcome/how_it_works_section.dart';
 import '../widgets/welcome/partner_cta_banner.dart';
 import '../widgets/welcome/quick_auth_section.dart';
 import '../widgets/welcome/welcome_top_bar.dart';
+import 'auth/login_screen.dart';
+import 'auth/sign_up_screen.dart';
 import 'catalog/catalog_screen.dart';
 
 /// Screen 1 (`SPEC // S1 · WELCOME & DISCOVERY`): Landing Page for Pick A-Frame.
@@ -43,73 +43,11 @@ class WelcomeScreen extends StatelessWidget {
       return;
     }
 
-    final auth = AppScope.of(context).auth;
-    final currentUser = auth.currentUser;
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppPalette.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                currentUser != null
-                    ? 'Signed in as ${currentUser.displayName.isNotEmpty ? currentUser.displayName : currentUser.email}'
-                    : (isSignUp ? 'Sign up with Email & Role Setup' : 'Authentication & Role Setup'),
-                style: const TextStyle(
-                  color: AppPalette.obsidianBlack,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                initialRole != null
-                    ? 'Pre-selected operational profile: ${initialRole.label}. Ready to connect to your teammate\'s Sign-In screen.'
-                    : 'Navigation hook ready for Authentication & Role Setup screen.',
-                style: const TextStyle(
-                  color: AppPalette.coolSlate,
-                  fontSize: 12.5,
-                  height: 1.4,
-                ),
-              ),
-              if (currentUser != null) ...[
-                const SizedBox(height: 14),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await auth.signOut();
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  },
-                  icon: const Icon(Icons.logout_rounded, size: 16),
-                  label: const Text('Sign out'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppPalette.obsidianBlack,
-                    side: const BorderSide(color: AppPalette.coolSlate),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppPalette.obsidianBlack,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                child: const Text('Got it'),
-              ),
-            ],
-          ),
-        ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => isSignUp
+            ? SignUpScreen(initialRole: initialRole)
+            : const LoginScreen(),
       ),
     );
   }
@@ -123,7 +61,8 @@ class WelcomeScreen extends StatelessWidget {
           children: [
             // Sticky Top Spec & Brand Header Bar (without EN | BM switcher)
             WelcomeTopBar(
-              onLoginTap: () => _openAuthAndRoleHook(context, isSignUp: false),
+              onLoginTap: () => 
+                  _openAuthAndRoleHook(context, isSignUp: false),
               onCatalogTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CatalogScreen()),
@@ -208,8 +147,6 @@ class WelcomeScreen extends StatelessWidget {
 
                         // Continue with Google / Sign up with email / Log in
                         QuickAuthSection(
-                          onEmailSignUpTap: () =>
-                              _openAuthAndRoleHook(context, isSignUp: true),
                           onLoginTap: () =>
                               _openAuthAndRoleHook(context, isSignUp: false),
                         ),

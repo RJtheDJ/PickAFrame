@@ -4,11 +4,29 @@ import 'dart:async';
 //use firebase things like store and login authentication
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 //import the models of user profile and repositories things
 import 'package:pickaframe_application/models/user_profile.dart';
+import 'package:pickaframe_application/models/venue.dart';
 import 'package:pickaframe_application/repositories/auth_repository.dart';
+
+/// Turns Firebase's error codes into messages for the sign-in screens.
+String _messageFor(FirebaseAuthException e) => switch (e.code) {
+      'invalid-credential' ||
+      'wrong-password' ||
+      'user-not-found' =>
+        'Wrong email or password.',
+      'invalid-email' => 'That email address is not valid.',
+      'email-already-in-use' =>
+        'An account already exists for that email. Log in instead.',
+      'weak-password' => 'Password must be at least 6 characters.',
+      'user-disabled' => 'This account has been disabled.',
+      'too-many-requests' => 'Too many attempts. Try again in a few minutes.',
+      'network-request-failed' => 'No internet connection.',
+      _ => e.message ?? 'Sign-in failed.',
+    };
 
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository({
@@ -21,6 +39,9 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseFirestore _firestore;
 
   UserProfile? _currentUser;
+
+  /// google_sign_in must be initialised exactly once per app run.
+  static Future<void>? _googleInit;
 
   @override
   UserProfile? get currentUser => _currentUser;
@@ -81,7 +102,7 @@ class FirebaseAuthRepository implements AuthRepository {
       _currentUser = profile;
       return profile;
     } on FirebaseAuthException catch (e) {
-      throw AuthException(e.message ?? 'Registration failed.');
+      throw AuthException(_messageFor(e));
     } catch (e) {
       throw AuthException(e.toString());
     }
@@ -116,23 +137,26 @@ class FirebaseAuthRepository implements AuthRepository {
       _currentUser = profile;
       return profile;
     } on FirebaseAuthException catch (e) {
-      throw AuthException(e.message ?? 'Sign-in failed.');
+      throw AuthException(_messageFor(e));
     } catch (e) {
       throw AuthException(e.toString());
     }
   }
 
   @override
-  Future<UserProfile> setRole(UserRole role) async {
+  Future<UserProfile> setRole(UserRole role, {Venue? venue}) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw const AuthException('No user is currently signed in.');
     }
 
+    final vendorId = role == UserRole.frameShopOwner ? user.uid : null;
     try {
-      await _firestore.collection('users').doc(user.uid).update({
+      await _firestore.collection('users').doc(user.uid).set({
         'role': role.name,
-      });
+        'venue': venue?.toJson(),
+        'vendorId': vendorId,
+      }, SetOptions(merge: true));
 
       final updated = (_currentUser ??
               UserProfile(
@@ -140,7 +164,7 @@ class FirebaseAuthRepository implements AuthRepository {
                 email: user.email ?? '',
                 displayName: user.displayName ?? '',
               ))
-          .copyWith(role: role);
+          .copyWith(role: role, venue: venue, vendorId: vendorId);
 
       _currentUser = updated;
       return updated;
@@ -152,17 +176,10 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<UserProfile> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
-      final googleUser = await googleSignIn.authenticate();
-
-      final googleAuth = googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user!;
+      final user = (kIsWeb
+              ? await _auth.signInWithPopup(GoogleAuthProvider())
+              : await _signInWithGoogleOnDevice())
+          .user!;
 
       final doc = await _firestore.collection('users').doc(user.uid).get();
 
@@ -181,16 +198,35 @@ class FirebaseAuthRepository implements AuthRepository {
         return profile;
       }
 
-    } on FirebaseAuthException catch(e){
-      throw AuthException(e.message ?? 'Google Sign-in failed.');
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw const AuthException('Google sign-in was cancelled.');
+      }
+      throw AuthException('Google sign-in failed: ${e.description ?? e.code.name}');
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_messageFor(e));
     } catch(e){
       throw AuthException(e.toString());
     }
   }
 
+  /// Android/iOS: pick an account with google_sign_in, then hand its token to
+  /// Firebase. (On web, Firebase's own popup is used instead, because
+  /// google_sign_in's web version needs a separate client id and button.)
+  Future<UserCredential> _signInWithGoogleOnDevice() async {
+    final googleSignIn = GoogleSignIn.instance;
+    await (_googleInit ??= googleSignIn.initialize());
+    final googleUser = await googleSignIn.authenticate();
+    final credential = GoogleAuthProvider.credential(
+      idToken: googleUser.authentication.idToken,
+    );
+    return _auth.signInWithCredential(credential);
+  }
+
   @override
   Future<void> signOut() async {
-    await GoogleSignIn.instance.signOut();
+    // Only sign out of google_sign_in if it was used in this run.
+    if (_googleInit != null) await GoogleSignIn.instance.signOut();
     await _auth.signOut();
     _currentUser = null;
   }
