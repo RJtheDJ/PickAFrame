@@ -14,9 +14,10 @@ Design and task list: [docs/plans/r2-exhibition.md](../../docs/plans/r2-exhibiti
 https://artwork-worker.artwork-worker.workers.dev
 ```
 
-It uses the real `pick-a-frame` R2 bucket. **If you only use the app, you
-don't need to install anything here**; the app talks to this address. The
-rest of this page is for working on the Worker itself.
+It uses the real `pick-a-frame` R2 bucket. **To test it you don't need to
+install anything**: see [Try it](#try-it). The Flutter app doesn't call it
+yet (Task 2). The install and `npm run dev` sections are only for working
+on the Worker itself.
 
 ## What to install (once)
 
@@ -62,13 +63,18 @@ git-ignored). They stay on your machine and never reach the real bucket.
 
 ## Try it
 
+This saves into the **real** bucket through the deployed Worker. Nothing
+needs to be installed; PowerShell is enough.
+
 Every request needs a real Firebase ID token for the `pick-a-frame` project.
 
-1. Make a test account: Firebase Console → Authentication → Users →
-   **Add user** (email + password).
-2. Get the **web** API key: `lib/firebase_options.dart`, the `apiKey` inside
-   `static const FirebaseOptions web`. (Use the web one; the Android/iOS
-   keys may be restricted to the apps.)
+1. Get a test account (email + password): Firebase Console →
+   Authentication → Users → **Add user**, or ask Kah Han.
+2. Get the **web** API key: the `apiKey` inside
+   `static const FirebaseOptions web` in `lib/firebase_options.dart`. That
+   file is git-ignored, so you only have it if you ran
+   `flutterfire configure`; otherwise ask Kah Han. Use the web key; the
+   Android/iOS keys may be restricted to the apps.
 3. Get a token in PowerShell (valid for one hour):
 
    ```powershell
@@ -77,16 +83,28 @@ Every request needs a real Firebase ID token for the `pick-a-frame` project.
    $token = $res.idToken
    ```
 
-4. Upload and read back an image:
+4. Upload an image, then read it back into `test.png`:
 
    ```powershell
-   curl.exe -X PUT --data-binary "@web\favicon.png" -H "Content-Type: image/png" -H "Authorization: Bearer $token" http://localhost:8787/v1/drafts/test1/artwork
-   curl.exe -H "Authorization: Bearer $token" http://localhost:8787/v1/drafts/test1/artwork -o test.png
+   $base = "https://artwork-worker.artwork-worker.workers.dev"
+   curl.exe -X PUT --data-binary "@web\favicon.png" -H "Content-Type: image/png" -H "Authorization: Bearer $token" "$base/v1/drafts/test1/artwork"
+   curl.exe -H "Authorization: Bearer $token" "$base/v1/drafts/test1/artwork" -o test.png
    ```
 
-   Run these from the repo root so `web\favicon.png` resolves. In
-   PowerShell, type `curl.exe`, not `curl` (`curl` is an alias for a
-   different command).
+   The upload should print `{"url":"/v1/drafts/test1/artwork"}`. Run these
+   from the repo root so `web\favicon.png` resolves. In PowerShell, type
+   `curl.exe`, not `curl` (`curl` is an alias for a different command).
+
+5. Check the bucket: Cloudflare dashboard → R2 → `pick-a-frame` →
+   `drafts/{your uid}/test1/artwork.png` (only the account owner can open
+   the dashboard).
+
+Each user only sees their own uploads: another account gets `404` for the
+same URL. That is the intended behaviour.
+
+To try your own changes to the Worker instead, start `npm run dev` (below)
+and set `$base = "http://localhost:8787"`. That uses the local, simulated
+bucket, not the real one.
 
 ## API
 
