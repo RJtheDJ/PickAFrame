@@ -12,18 +12,15 @@ import '../models/user_profile.dart';
 import '../models/vendor.dart';
 import '../services/artwork_service.dart';
 import '../services/document_scanner_service.dart';
-import '../services/export_service.dart';
 import '../view_models/editor_viewmodel.dart';
-import '../view_models/room_preview_viewmodel.dart';
 import '../widgets/editor/frame_panel.dart';
 import '../widgets/editor/mat_panel.dart';
 import '../widgets/frame_renderer.dart';
-import '../widgets/preview/room_panel.dart';
-import '../widgets/room_preview.dart';
+import '../widgets/export_button.dart';
 import 'artwork_crop_screen.dart';
 
-/// The core visualizer: frame preview on top, tabbed controls below. The
-/// Edit | Preview toggle switches to hanging the framed artwork in a room.
+/// The core visualizer: frame preview on top, tabbed controls below. Rooms
+/// are previewed from the Exhibit tab, with saved drafts.
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
 
@@ -33,15 +30,11 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> {
   final EditorViewModel viewModel = EditorViewModel();
-  final RoomPreviewViewModel room = RoomPreviewViewModel();
   final _exportKey = GlobalKey();
-  bool _exporting = false;
-  _ViewMode _mode = _ViewMode.edit;
 
   @override
   void dispose() {
     viewModel.dispose();
-    room.dispose();
     super.dispose();
   }
 
@@ -105,60 +98,6 @@ class _EditorScreenState extends State<EditorScreen> {
           const SnackBar(content: Text("Couldn't load that artwork. Please try again.")),
         );
       }
-    }
-  }
-
-  /// Renders the framed artwork at high resolution, then saves or shares it.
-  Future<void> _export(Rect shareOrigin) async {
-    final action = await showModalBottomSheet<_ExportAction>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (canSaveToGallery)
-              ListTile(
-                leading: const Icon(Icons.download_outlined),
-                title: const Text('Save to gallery'),
-                onTap: () => Navigator.pop(context, _ExportAction.save),
-              ),
-            ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: const Text('Share'),
-              subtitle: const Text('Includes the frame and mat details'),
-              onTap: () => Navigator.pop(context, _ExportAction.share),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !mounted) return;
-
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _exporting = true);
-    try {
-      final png = await renderPng(_exportKey);
-      switch (action) {
-        case _ExportAction.save:
-          await saveToGallery(png);
-          messenger.showSnackBar(const SnackBar(content: Text('Saved to your gallery')));
-        case _ExportAction.share:
-          await sharePng(
-            png,
-            message: 'Framed with PickAFrame\n${designSummaryText(viewModel.design)}'
-                '${_mode == _ViewMode.preview ? '\nShown in: ${room.scene.name}' : ''}',
-            origin: shareOrigin,
-          );
-      }
-    } on GalleryPermissionDenied {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Allow access to Photos in Settings to save mock-ups')),
-      );
-    } catch (e) {
-      debugPrint('Export failed: $e');
-      messenger.showSnackBar(const SnackBar(content: Text('Export failed. Please try again.')));
-    } finally {
-      if (mounted) setState(() => _exporting = false);
     }
   }
 
@@ -393,35 +332,14 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([viewModel, room]),
+      listenable: viewModel,
       builder: (context, child) {
         final design = viewModel.design;
-        final previewing = _mode == _ViewMode.preview;
 
         return Scaffold(
           backgroundColor: Colors.blueGrey[900],
           appBar: AppBar(
-            titleSpacing: 12,
-            title: SegmentedButton<_ViewMode>(
-              segments: const [
-                ButtonSegment(value: _ViewMode.edit, label: Text('Edit'), icon: Icon(Icons.tune)),
-                ButtonSegment(
-                  value: _ViewMode.preview,
-                  label: Text('Preview'),
-                  icon: Icon(Icons.chair_outlined),
-                ),
-              ],
-              selected: {_mode},
-              onSelectionChanged: (selection) => setState(() => _mode = selection.first),
-              showSelectedIcon: false,
-              style: SegmentedButton.styleFrom(
-                foregroundColor: Colors.white70,
-                selectedForegroundColor: Colors.black,
-                selectedBackgroundColor: Colors.white,
-                visualDensity: VisualDensity.compact,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+            title: const Text('Visualizer'),
             backgroundColor: Colors.black87,
             foregroundColor: Colors.white,
             actions: [
@@ -430,22 +348,9 @@ class _EditorScreenState extends State<EditorScreen> {
                 tooltip: 'Firebase Diagnostics',
                 onPressed: _showFirebaseTestDialog,
               ),
-              Builder(
-                builder: (buttonContext) => IconButton(
-                  icon: _exporting
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.ios_share),
-                  tooltip: 'Export',
-                  onPressed: _exporting
-                      ? null
-                      : () {
-                          final box = buttonContext.findRenderObject()! as RenderBox;
-                          _export(box.localToGlobal(Offset.zero) & box.size);
-                        },
-                ),
+              ExportButton(
+                boundaryKey: _exportKey,
+                message: () => 'Framed with PickAFrame\n${designSummaryText(viewModel.design)}',
               ),
               if (viewModel.artwork case final artwork?)
                 IconButton(
@@ -470,28 +375,18 @@ class _EditorScreenState extends State<EditorScreen> {
             children: [
               // FRAME PREVIEW
               Expanded(
-                child: previewing
-                    ? RoomPreview(
-                        room: room,
-                        design: design,
-                        light: viewModel.light,
-                        finishImages: viewModel.finishImages,
-                        shaderResources: viewModel.shaderResources,
-                        artworkImage: viewModel.artwork?.image,
-                        exportKey: _exportKey,
-                      )
-                    : FrameRenderer(
-                        design: design,
-                        light: viewModel.light,
-                        finishImages: viewModel.finishImages,
-                        shaderResources: viewModel.shaderResources,
-                        artworkImage: viewModel.artwork?.image,
-                        wallColor: Colors.blueGrey[900]!,
-                        exportKey: _exportKey,
-                      ),
+                child: FrameRenderer(
+                  design: design,
+                  light: viewModel.light,
+                  finishImages: viewModel.finishImages,
+                  shaderResources: viewModel.shaderResources,
+                  artworkImage: viewModel.artwork?.image,
+                  wallColor: Colors.blueGrey[900]!,
+                  exportKey: _exportKey,
+                ),
               ),
               Padding(
-                padding: EdgeInsets.only(bottom: 8, top: previewing ? 8 : 0),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
@@ -500,35 +395,31 @@ class _EditorScreenState extends State<EditorScreen> {
               // CONTROL PANEL
               Theme(
                 data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-                child: Container(
+                // Material, so the Mat tab's switch shows its ink on the dark panel.
+                child: Material(
                   color: Colors.black87,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: SafeArea(
-                    top: false,
-                    child: previewing
-                        ? SizedBox(
-                            // Same height as the editor's tabs, so the view
-                            // doesn't jump when switching.
-                            height: 338,
-                            child: RoomPanel(room: room, editor: viewModel),
-                          )
-                        : DefaultTabController(
-                            length: 2,
-                            child: Column(
-                              children: [
-                                const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
-                                SizedBox(
-                                  height: 290,
-                                  child: TabBarView(
-                                    children: [
-                                      FramePanel(viewModel: viewModel),
-                                      MatPanel(viewModel: viewModel),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SafeArea(
+                      top: false,
+                      child: DefaultTabController(
+                        length: 2,
+                        child: Column(
+                          children: [
+                            const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
+                            SizedBox(
+                              height: 290,
+                              child: TabBarView(
+                                children: [
+                                  FramePanel(viewModel: viewModel),
+                                  MatPanel(viewModel: viewModel),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -541,7 +432,3 @@ class _EditorScreenState extends State<EditorScreen> {
 }
 
 enum _ArtworkSource { scan, gallery, camera }
-
-enum _ExportAction { save, share }
-
-enum _ViewMode { edit, preview }

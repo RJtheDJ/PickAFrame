@@ -2,19 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../data/room_catalog.dart';
 import '../../rendering/room_viewport.dart';
-import '../../view_models/editor_viewmodel.dart';
 import '../../view_models/room_preview_viewmodel.dart';
 import '../editor/color_swatch_row.dart';
 import '../editor/labeled_slider.dart';
 
 /// In-room preview controls: room, wall colour, furniture, zoom and light.
 class RoomPanel extends StatelessWidget {
-  const RoomPanel({super.key, required this.room, required this.editor});
+  const RoomPanel({super.key, required this.room});
 
   final RoomPreviewViewModel room;
-
-  /// For the light, which is shared with the editor.
-  final EditorViewModel editor;
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +65,12 @@ class RoomPanel extends StatelessWidget {
         ),
         LabeledSlider(
           label: 'Light',
-          value: editor.light.azimuthDeg,
+          value: room.light.azimuthDeg,
           min: -180,
           max: 180,
           format: (deg) => '${deg.round()}°',
           activeColor: Colors.amber[300],
-          onChanged: editor.setLightAzimuth,
+          onChanged: room.setLightAzimuth,
         ),
         if (room.isDragged)
           Align(

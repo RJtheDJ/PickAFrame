@@ -7,6 +7,7 @@ import '../repositories/draft_repository.dart';
 import '../repositories/in_memory/in_memory_repositories.dart';
 import '../repositories/order_repository.dart';
 import '../repositories/vendor_repository.dart';
+import '../services/artwork_storage.dart';
 import '../repositories/firebase/firebase_auth_repository.dart';
 import '../repositories/firebase/firebase_draft_repository.dart';
 
@@ -19,6 +20,7 @@ class AppDependencies {
     required this.drafts,
     required this.vendors,
     required this.orders,
+    this.artworkStorage,
   });
 
   /// Everything in memory: for development before Firebase, and for tests.
@@ -43,6 +45,11 @@ class AppDependencies {
   final DraftRepository drafts;
   final VendorRepository vendors;
   final OrderRepository orders;
+
+  /// Saved drafts' artwork images. Null until the Cloudflare storage from
+  /// docs/plans/r2-exhibition.md (Task 2) is wired in; until then saved
+  /// drafts show a placeholder artwork.
+  final ArtworkStorage? artworkStorage;
 }
 
 /// Makes [AppDependencies] available below it: `AppScope.of(context).drafts`.

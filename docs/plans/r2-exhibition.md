@@ -19,7 +19,7 @@ This plan has three phases. Phase 1 is the current work.
 |---|---|
 | Task 1: Worker API | 🟡 Done and deployed to `https://artwork-worker.artwork-worker.workers.dev` on the real `pick-a-frame` bucket; checked by hand with real tokens, locally and deployed. Automated tests not written yet. |
 | Task 2: Flutter storage + Save | ⬜ Not started. `Draft.artworkUrl` already exists. |
-| Task 3: Saved Drafts + Exhibition View | ⬜ Not started. |
+| Task 3: Saved Drafts + Exhibition View | 🟡 Built by RJ (29 Oct): Exhibit tab → `ExhibitScreen` (pick drafts) → `ExhibitRoomScreen` (several pieces in the existing rooms). Shows a placeholder artwork until Task 2 sets `AppDependencies.artworkStorage`. |
 | Task 4: End-to-end walkthrough | ⬜ Not started. |
 
 The R2 binding `ARTWORKS` already points at a bucket named `pick-a-frame` in
@@ -187,10 +187,13 @@ Files: modify `lib/views/catalog/catalog_screen.dart`,
       to Saved Drafts.
 - [ ] The widget test passes.
 
-> Overlap to agree with RJ first: the roadmap lists "Virtual Gallery Wall"
-> as RJ's ongoing work, and `RoomPreview` already shows one framed piece on
-> a wall. Decide whether Exhibition View extends `RoomPreview` or is a
-> separate screen before building it.
+> Decided 29 Oct (RJ): Exhibition View extends `RoomPreview`, which now
+> hangs several pieces (`RoomPiece`), each draggable. The editor's
+> Edit | Preview toggle is gone; rooms are only reached from the Exhibit tab.
+> `lib/services/artwork_storage.dart` holds the `ArtworkStorage` interface
+> from Task 2 (interface only); `AppDependencies.artworkStorage` is null
+> until Task 2 fills it. For "after saving, link to Saved Drafts", open
+> `ExhibitScreen(initialSelection: {draft.id})`.
 
 ## Task 4: End-to-end check
 

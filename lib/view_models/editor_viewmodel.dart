@@ -60,7 +60,7 @@ class EditorViewModel extends ChangeNotifier {
   /// The decoded maps or moulding strip for the current finish, or null
   /// while they load (the frame is then drawn in a flat stand-in colour).
   FinishImages? get finishImages {
-    final assets = _assetsOf(_design.finish);
+    final assets = assetsOf(_design.finish);
     return assets != null && assets.first == _imagesKey ? _images : null;
   }
 
@@ -96,13 +96,13 @@ class EditorViewModel extends ChangeNotifier {
   void selectWood(WoodFinish wood) {
     _wood = wood;
     _update(_design.copyWith(finish: wood));
-    _loadImages(_assetsOf(wood)!);
+    _loadImages(assetsOf(wood)!);
   }
 
   void selectMetal(MetalFinish metal) {
     _metal = metal;
     _update(_design.copyWith(finish: metal));
-    _loadImages(_assetsOf(metal)!);
+    _loadImages(assetsOf(metal)!);
   }
 
   /// Also sets the face width to the real moulding's.
@@ -112,7 +112,7 @@ class EditorViewModel extends ChangeNotifier {
       finish: moulding,
       moulding: _design.moulding.copyWith(faceWidthMm: moulding.faceWidthMm),
     ));
-    _loadImages(_assetsOf(moulding)!);
+    _loadImages(assetsOf(moulding)!);
   }
 
   void setLightAzimuth(double degrees) {
@@ -122,7 +122,7 @@ class EditorViewModel extends ChangeNotifier {
 
   /// Image assets a finish needs: colour, normal and roughness maps for
   /// textured materials, or the strip for a photographed moulding.
-  static List<String>? _assetsOf(FrameFinish finish) => switch (finish) {
+  static List<String>? assetsOf(FrameFinish finish) => switch (finish) {
         WoodFinish(:final textures) || MetalFinish(:final textures) => [
             textures.albedo,
             textures.normal,

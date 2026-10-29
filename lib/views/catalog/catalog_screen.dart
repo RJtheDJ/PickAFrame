@@ -9,6 +9,7 @@ import '../../widgets/catalog/catalog_map_view.dart';
 import '../../widgets/catalog/moulding_grid_card.dart';
 import '../../widgets/catalog/workshop_map_placeholder.dart';
 import '../editor_screen.dart';
+import '../exhibit_screen.dart';
 import '../orders/my_orders_screen.dart';
 
 /// The 4 sort options for the Unified Frame Catalogue.
@@ -495,6 +496,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
           }
           if (index == 1 && _selectedTopTab != 0) {
             setState(() => _selectedTopTab = 0);
+            return;
+          }
+          if (index == 2) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ExhibitScreen()),
+            );
             return;
           }
           if (index == 3) {

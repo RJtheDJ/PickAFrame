@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../app/app_theme.dart';
 import 'moulding_grid_card.dart';
 
@@ -971,11 +970,10 @@ class _CatalogMapViewState extends State<CatalogMapView> {
 class _MapFilterPill extends StatelessWidget {
   const _MapFilterPill({
     required this.icon,
-    this.fallbackIcon,
     required this.label,
     required this.selected,
     required this.onTap,
-  });
+  }) : fallbackIcon = null;
 
   final IconData icon;
   final IconData? fallbackIcon;

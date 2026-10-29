@@ -73,6 +73,23 @@ const standardHangingCentreMm = 1450.0;
 /// Gap left between the top of furniture and the bottom of the frame.
 const furnitureClearanceMm = 250.0;
 
+/// Gap between pieces hung side by side.
+const pieceGapMm = 250.0;
+
+/// Default spots for [frames] hung side by side in one row, centred on the
+/// wall, each at its own default height.
+List<Offset> defaultRowCentres(RoomScene scene, List<Size> frames, {required bool showFurniture}) {
+  final rowWidth = frames.fold(0.0, (sum, f) => sum + f.width) + pieceGapMm * (frames.length - 1);
+  var left = -rowWidth / 2;
+  final centres = <Offset>[];
+  for (final frame in frames) {
+    final height = defaultHangingCentre(scene, frame, showFurniture: showFurniture).dy;
+    centres.add(Offset(left + frame.width / 2, height));
+    left += frame.width + pieceGapMm;
+  }
+  return centres;
+}
+
 /// Where a frame of [frameMm] hangs by default: centred at the standard
 /// height, or higher if it would otherwise come too close to the furniture.
 Offset defaultHangingCentre(RoomScene scene, Size frameMm, {required bool showFurniture}) {

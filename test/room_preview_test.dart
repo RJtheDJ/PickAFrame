@@ -7,7 +7,6 @@ import 'package:pickaframe_application/models/frame_profile.dart';
 import 'package:pickaframe_application/models/mat_spec.dart';
 import 'package:pickaframe_application/models/moulding.dart';
 import 'package:pickaframe_application/models/room_scene.dart';
-import 'package:pickaframe_application/rendering/lighting.dart';
 import 'package:pickaframe_application/rendering/room_viewport.dart';
 import 'package:pickaframe_application/view_models/room_preview_viewmodel.dart';
 import 'package:pickaframe_application/widgets/room_preview.dart';
@@ -65,22 +64,32 @@ void main() {
     });
   });
 
+  test('several pieces hang side by side, centred, with even gaps', () {
+    const frames = [Size(600, 500), Size(400, 400)];
+    final centres = defaultRowCentres(whiteCube, frames, showFurniture: false);
+    // Row is 600 + 250 + 400 = 1250 mm wide, centred on the wall.
+    expect(centres[0], const Offset(-325, standardHangingCentreMm));
+    expect(centres[1], const Offset(425, standardHangingCentreMm));
+  });
+
   group('RoomPreviewViewModel', () {
     TestWidgetsFlutterBinding.ensureInitialized();
 
-    test('dragging moves the artwork; reset and scene changes put it back', () {
+    test('dragging moves one piece; reset and scene changes put them back', () {
       final room = RoomPreviewViewModel();
-      const frame = Size(600, 500);
-      final start = room.hangingCentre(frame);
+      const frames = {'a': Size(600, 500), 'b': Size(400, 400)};
+      final start = room.centres(frames);
 
-      room.moveArtwork(const Offset(100, 50), frame);
-      expect(room.hangingCentre(frame), start + const Offset(100, 50));
+      room.moveArtwork('a', const Offset(100, 50), frames);
+      expect(room.centres(frames)['a'], start['a']! + const Offset(100, 50));
+      expect(room.centres(frames)['b'], start['b'], reason: 'the other piece stays put');
       expect(room.isDragged, isTrue);
+      expect(room.lastMoved, 'a');
 
       room.resetPosition();
-      expect(room.hangingCentre(frame), start);
+      expect(room.centres(frames), start);
 
-      room.moveArtwork(const Offset(100, 50), frame);
+      room.moveArtwork('b', const Offset(100, 50), frames);
       room.selectScene(whiteCube);
       expect(room.isDragged, isFalse);
       expect(room.wallColor, whiteCube.defaultWallColor);
@@ -89,10 +98,10 @@ void main() {
 
     test('hiding the furniture lowers the default hanging height to the standard', () {
       final room = RoomPreviewViewModel();
-      const tall = Size(1200, 900);
-      expect(room.hangingCentre(tall).dy, 1550);
+      const tall = {'a': Size(1200, 900)};
+      expect(room.centres(tall)['a']!.dy, 1550);
       room.setShowFurniture(false);
-      expect(room.hangingCentre(tall).dy, standardHangingCentreMm);
+      expect(room.centres(tall)['a']!.dy, standardHangingCentreMm);
       room.dispose();
     });
   });
@@ -118,7 +127,13 @@ void main() {
             home: SizedBox(
               width: 400,
               height: 600,
-              child: RoomPreview(room: room, design: design, light: const Light()),
+              child: RoomPreview(
+                room: room,
+                pieces: [
+                  RoomPiece(id: 'a', design: design),
+                  RoomPiece(id: 'b', design: design.withArtworkWidth(300)),
+                ],
+              ),
             ),
           ));
           expect(tester.takeException(), isNull, reason: '${scene.name}, furniture $furniture, zoom $zoom');

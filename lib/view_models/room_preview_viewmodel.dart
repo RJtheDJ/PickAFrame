@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Color, Offset, Size;
 import 'dart:ui' as ui;
 
@@ -6,11 +7,12 @@ import 'package:flutter/foundation.dart';
 import '../data/room_catalog.dart';
 import '../models/frame_finish.dart';
 import '../models/room_scene.dart';
+import '../rendering/lighting.dart';
 import '../rendering/room_viewport.dart';
 import '../services/texture_service.dart';
 
 /// State of the in-room preview: which room, wall colour, furniture, zoom,
-/// and where the framed artwork hangs.
+/// light, and where each framed piece hangs.
 class RoomPreviewViewModel extends ChangeNotifier {
   RoomPreviewViewModel({TextureService? textureService})
       : _textures = textureService ?? TextureService() {
@@ -23,9 +25,12 @@ class RoomPreviewViewModel extends ChangeNotifier {
   Color _wallColor = roomScenes.first.defaultWallColor;
   bool _showFurniture = true;
   double _zoom = RoomViewport.minZoom;
+  Light _light = const Light();
 
-  /// Where the user dragged the artwork (its centre, mm); null = default spot.
-  Offset? _draggedCentre;
+  /// Where the user dragged each piece (its centre, mm), by piece id. Pieces
+  /// not in here hang in their default spot.
+  final _dragged = <String, Offset>{};
+  String? _lastMoved;
 
   ui.Image? _floorImage;
   int _floorRequest = 0;
@@ -36,27 +41,39 @@ class RoomPreviewViewModel extends ChangeNotifier {
   double get zoom => _zoom;
   bool get hasFurniture => _scene.furniture != null;
   bool get showFurniture => _showFurniture && hasFurniture;
-  bool get isDragged => _draggedCentre != null;
+  Light get light => _light;
+  bool get isDragged => _dragged.isNotEmpty;
+
+  /// The piece the user moved last, if any.
+  String? get lastMoved => _lastMoved;
 
   /// Texture of the current scene's wooden floor (null for concrete).
   TextureSet? get floorTextureSet => floorTextures(_scene.floor);
   ui.Image? get floorImage => _floorImage;
 
-  /// Centre of the framed artwork on the wall, in mm, for a frame of
-  /// [frameMm] (its overall size).
-  Offset hangingCentre(Size frameMm) {
-    final dragged = _draggedCentre;
-    if (dragged == null) {
-      return defaultHangingCentre(_scene, frameMm, showFurniture: showFurniture);
+  /// Centre of each piece on the wall, in mm, for pieces of the given
+  /// overall frame sizes (in hanging order, keyed by piece id).
+  Map<String, Offset> centres(Map<String, Size> framesMm) {
+    final defaults = defaultRowCentres(_scene, framesMm.values.toList(), showFurniture: showFurniture);
+    final range = _dragRange(framesMm);
+    final result = <String, Offset>{};
+    var i = 0;
+    for (final MapEntry(key: id, value: frame) in framesMm.entries) {
+      final dragged = _dragged[id];
+      result[id] = dragged == null
+          ? defaults[i]
+          : clampHangingCentre(_scene, dragged, frame, halfRangeMm: range);
+      i++;
     }
-    return clampHangingCentre(_scene, dragged, frameMm, halfRangeMm: RoomViewport.dragRangeMm(_scene));
+    return result;
   }
 
   void selectScene(RoomScene scene) {
     if (scene == _scene) return;
     _scene = scene;
     _wallColor = scene.defaultWallColor;
-    _draggedCentre = null;
+    _dragged.clear();
+    _lastMoved = null;
     notifyListeners();
     _loadFloor();
   }
@@ -76,20 +93,36 @@ class RoomPreviewViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Moves the artwork by [deltaMm] (a finger drag converted to mm).
-  void moveArtwork(Offset deltaMm, Size frameMm) {
-    _draggedCentre = clampHangingCentre(
+  void setLightAzimuth(double degrees) {
+    _light = _light.copyWith(azimuthDeg: degrees);
+    notifyListeners();
+  }
+
+  /// Moves piece [id] by [deltaMm] (a finger drag converted to mm).
+  void moveArtwork(String id, Offset deltaMm, Map<String, Size> framesMm) {
+    final current = centres(framesMm)[id]!;
+    _dragged[id] = clampHangingCentre(
       _scene,
-      hangingCentre(frameMm) + deltaMm,
-      frameMm,
-      halfRangeMm: RoomViewport.dragRangeMm(_scene),
+      current + deltaMm,
+      framesMm[id]!,
+      halfRangeMm: _dragRange(framesMm),
     );
+    _lastMoved = id;
     notifyListeners();
   }
 
   void resetPosition() {
-    _draggedCentre = null;
+    _dragged.clear();
+    _lastMoved = null;
     notifyListeners();
+  }
+
+  /// How far either side of the middle pieces can go: the room's usual range,
+  /// widened so a long row of pieces always fits.
+  double _dragRange(Map<String, Size> framesMm) {
+    final rowWidth =
+        framesMm.values.fold(0.0, (sum, f) => sum + f.width) + pieceGapMm * (framesMm.length - 1);
+    return math.max(RoomViewport.dragRangeMm(_scene), rowWidth / 2 + pieceGapMm);
   }
 
   Future<void> _loadFloor() async {

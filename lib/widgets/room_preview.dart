@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/frame_design.dart';
 import '../models/units.dart';
-import '../rendering/lighting.dart';
 import '../rendering/room_painter.dart';
 import '../rendering/room_viewport.dart';
 import '../rendering/shaded_frame_painter.dart';
@@ -12,25 +11,34 @@ import '../services/texture_service.dart';
 import '../view_models/room_preview_viewmodel.dart';
 import 'frame_renderer.dart';
 
-/// The framed artwork hung in a room at true size. Drag it to move it.
+/// One framed artwork to hang in the room.
+class RoomPiece {
+  const RoomPiece({required this.id, required this.design, this.artwork, this.finishImages});
+
+  final String id;
+  final FrameDesign design;
+
+  /// The cropped artwork, or null for a placeholder.
+  final ui.Image? artwork;
+
+  /// Texture maps for the piece's finish, or null while they load.
+  final FinishImages? finishImages;
+}
+
+/// Framed artworks hung in a room at true size, side by side. Drag a piece
+/// to move it.
 class RoomPreview extends StatelessWidget {
   const RoomPreview({
     super.key,
     required this.room,
-    required this.design,
-    required this.light,
-    this.finishImages,
+    required this.pieces,
     this.shaderResources,
-    this.artworkImage,
     this.exportKey,
   });
 
   final RoomPreviewViewModel room;
-  final FrameDesign design;
-  final Light light;
-  final FinishImages? finishImages;
+  final List<RoomPiece> pieces;
   final FrameShaderResources? shaderResources;
-  final ui.Image? artworkImage;
 
   /// Key for the [RepaintBoundary] around the room, which export renders.
   final GlobalKey? exportKey;
@@ -41,19 +49,27 @@ class RoomPreview extends StatelessWidget {
       builder: (context, constraints) {
         final screen = constraints.biggest;
         final scene = room.scene;
-        final frameMm = design.outerMm;
-        final centreMm = room.hangingCentre(frameMm);
-        final viewport = RoomViewport.fit(
-          screen: screen,
-          scene: scene,
-          zoom: room.zoom,
-          focusMm: centreMm,
-        );
-        final artworkRect = Rect.fromCenter(
-          center: viewport.toScreen(centreMm),
-          width: frameMm.width * viewport.scale,
-          height: frameMm.height * viewport.scale,
-        );
+        final framesMm = {for (final piece in pieces) piece.id: piece.design.outerMm};
+        final centresMm = room.centres(framesMm);
+
+        // Zoom towards the middle of the group.
+        final focusMm = centresMm.isEmpty
+            ? const Offset(0, 1450)
+            : centresMm.values.reduce((a, b) => a + b) / centresMm.length.toDouble();
+        final viewport = RoomViewport.fit(screen: screen, scene: scene, zoom: room.zoom, focusMm: focusMm);
+
+        final rects = {
+          for (final piece in pieces)
+            piece.id: Rect.fromCenter(
+              center: viewport.toScreen(centresMm[piece.id]!),
+              width: framesMm[piece.id]!.width * viewport.scale,
+              height: framesMm[piece.id]!.height * viewport.scale,
+            ),
+        };
+        final group = rects.isEmpty
+            ? Rect.fromCenter(center: viewport.toScreen(focusMm), width: 1, height: 1)
+            : rects.values.reduce((a, b) => a.expandToInclude(b));
+        final labelled = room.lastMoved ?? pieces.firstOrNull?.id;
         final furniture = scene.furniture;
 
         return Stack(
@@ -70,30 +86,34 @@ class RoomPreview extends StatelessWidget {
                           scene: scene,
                           wallColor: room.wallColor,
                           viewport: viewport,
-                          light: light,
-                          artworkRect: artworkRect,
+                          light: room.light,
+                          artworkRect: group,
                           floorImage: room.floorImage,
                           floorTextures: room.floorTextureSet,
                         ),
                       ),
                     ),
-                    Positioned.fromRect(
-                      rect: artworkRect,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onPanUpdate: (details) =>
-                            room.moveArtwork(viewport.screenDeltaToMm(details.delta), frameMm),
-                        child: FrameRenderer(
-                          design: design,
-                          light: light,
-                          finishImages: finishImages,
-                          shaderResources: shaderResources,
-                          artworkImage: artworkImage,
-                          wallColor: null,
-                          wallMargin: 0,
+                    for (final piece in pieces)
+                      Positioned.fromRect(
+                        rect: rects[piece.id]!,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onPanUpdate: (details) => room.moveArtwork(
+                            piece.id,
+                            viewport.screenDeltaToMm(details.delta),
+                            framesMm,
+                          ),
+                          child: FrameRenderer(
+                            design: piece.design,
+                            light: room.light,
+                            finishImages: piece.finishImages,
+                            shaderResources: shaderResources,
+                            artworkImage: piece.artwork,
+                            wallColor: null,
+                            wallMargin: 0,
+                          ),
                         ),
                       ),
-                    ),
                     if (furniture != null && room.showFurniture)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -101,7 +121,7 @@ class RoomPreview extends StatelessWidget {
                             painter: FurniturePainter(
                               furniture: furniture,
                               viewport: viewport,
-                              light: light,
+                              light: room.light,
                             ),
                           ),
                         ),
@@ -111,14 +131,15 @@ class RoomPreview extends StatelessWidget {
               ),
             ),
             // Not part of the exported image.
-            Positioned(
-              left: 12,
-              top: 12,
-              child: _Label(
-                'Centre ${formatLength(centreMm.dy)} from floor'
-                '${room.isDragged ? '' : '  ·  drag to move'}',
+            if (labelled != null)
+              Positioned(
+                left: 12,
+                top: 12,
+                child: _Label(
+                  'Centre ${formatLength(centresMm[labelled]!.dy)} from floor'
+                  '${room.isDragged ? '' : '  ·  drag to move'}',
+                ),
               ),
-            ),
           ],
         );
       },
