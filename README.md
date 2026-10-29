@@ -24,8 +24,10 @@ flutter test
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md): how the code is organised, and how
-  Firebase and Google Maps plug in.
-- [Roadmap](docs/ROADMAP.md): every planned feature and its status.
+  Firebase, Cloudflare R2 and Google Maps plug in.
+- [Roadmap](docs/ROADMAP.md): every planned feature, its owner and its status.
+- [Plan: R2 storage and Exhibition View](docs/plans/r2-exhibition.md): the
+  current task list for saving drafts and showing several on one wall.
 
 ## Asset credits
 

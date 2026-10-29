@@ -63,3 +63,6 @@ key.properties
 .claude/
 .ignore
 .mcp.json
+
+# graphify knowledge graph output (regenerate with /graphify)
+graphify-out/
