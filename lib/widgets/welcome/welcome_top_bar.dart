@@ -4,19 +4,134 @@ import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
 import '../../models/user_profile.dart';
 
-/// Brand navigation bar for Screen 1 (Welcome & Discovery).
+/// Brand navigation bar for Screen 1 (Welcome & Discovery / Logged-in Home).
 ///
 /// Renders the `[A] Pick A-Frame` logo mark on the left and the `Log in`
 /// action (or signed-in user badge) on the right.
+/// The temporary `Catalog` button beside `Log in` has been removed.
 class WelcomeTopBar extends StatelessWidget {
   const WelcomeTopBar({
     super.key,
     required this.onLoginTap,
-    this.onCatalogTap,
   });
 
   final VoidCallback onLoginTap;
-  final VoidCallback? onCatalogTap;
+
+  void _showUserAccountSheet(BuildContext context, UserProfile user) {
+    final auth = AppScope.of(context).auth;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppPalette.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: AppPalette.obsidianBlack,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.displayName.isNotEmpty
+                              ? user.displayName
+                              : 'Pick A-Frame Member',
+                          style: const TextStyle(
+                            color: AppPalette.obsidianBlack,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email,
+                          style: const TextStyle(
+                            color: AppPalette.coolSlate,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (user.role != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppPalette.slateTintSurface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        user.role!.label,
+                        style: AppTheme.monoStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: AppPalette.midnightSlate,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppPalette.borderLight),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(sheetContext).pop();
+                    await auth.signOut();
+                  },
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    size: 17,
+                    color: AppPalette.obsidianBlack,
+                  ),
+                  label: const Text(
+                    'Log out',
+                    style: TextStyle(
+                      color: AppPalette.obsidianBlack,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppPalette.borderLight),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,32 +197,6 @@ class WelcomeTopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          if (onCatalogTap != null) ...[
-            OutlinedButton.icon(
-              onPressed: onCatalogTap,
-              icon: const Icon(Icons.grid_view_rounded, size: 13),
-              label: Text(
-                'Catalog',
-                style: AppTheme.monoStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppPalette.obsidianBlack,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: AppPalette.slateTintSurface,
-                foregroundColor: AppPalette.obsidianBlack,
-                side: const BorderSide(color: AppPalette.borderLight),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
           // Live Auth State or "Log in" action
           StreamBuilder<UserProfile?>(
             stream: auth.watchUser(),
@@ -116,14 +205,19 @@ class WelcomeTopBar extends StatelessWidget {
               final user = snapshot.data;
               if (user != null) {
                 return InkWell(
-                  onTap: onLoginTap,
+                  onTap: () => _showUserAccountSheet(context, user),
                   borderRadius: BorderRadius.circular(4),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppPalette.slateTintSurface,
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppPalette.midnightSlate.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: AppPalette.midnightSlate.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -138,7 +232,9 @@ class WelcomeTopBar extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          user.displayName.isNotEmpty ? user.displayName : user.email,
+                          user.displayName.isNotEmpty
+                              ? user.displayName
+                              : user.email,
                           style: const TextStyle(
                             color: AppPalette.midnightSlate,
                             fontSize: 12,
@@ -155,7 +251,10 @@ class WelcomeTopBar extends StatelessWidget {
                 onPressed: onLoginTap,
                 style: TextButton.styleFrom(
                   foregroundColor: AppPalette.obsidianBlack,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
