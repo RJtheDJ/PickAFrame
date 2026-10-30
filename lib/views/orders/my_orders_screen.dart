@@ -37,6 +37,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Stream<List<FramingOrder>>? _orders;
   String? _ordersKey;
 
+  static Route<T> _instantTabRoute<T>(Widget page) => PageRouteBuilder<T>(
+        pageBuilder: (_, _, _) => page,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      );
+
   /// Frame shops see the orders sent to them; everyone else their own.
   Stream<List<FramingOrder>> _ordersFor(UserProfile user) {
     final vendorId = user.vendorId;
@@ -118,7 +124,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   const SizedBox(width: 10),
                   Text(
                     isShop ? 'Incoming Orders' : 'My Orders',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppPalette.obsidianBlack,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -201,21 +207,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         currentIndex: 3, // Orders tab highlighted
         onTabSelected: (index) {
           if (index == 3) return;
-          if (index == 1) {
+          if (index == 0) {
             if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const CatalogScreen()),
-              );
+              Navigator.of(context).popUntil((route) => route.isFirst);
             }
             return;
           }
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
+          if (index == 1) {
+            Navigator.of(context).pushReplacement(
+              _instantTabRoute(const CatalogScreen()),
+            );
+            return;
           }
           if (index == 2) {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExhibitScreen()));
+            Navigator.of(context).pushReplacement(
+              _instantTabRoute(const ExhibitScreen()),
+            );
+            return;
           }
         },
         onCenterAddTap: () {

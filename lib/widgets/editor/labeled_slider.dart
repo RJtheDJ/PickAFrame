@@ -28,27 +28,52 @@ class LabeledSlider extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 72,
+          width: 82,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF090A0C),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(
-          child: Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            activeColor: activeColor,
-            onChanged: onChanged,
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: activeColor ?? const Color(0xFF090A0C),
+              inactiveTrackColor: const Color(0xFFCBD5E1),
+              thumbColor: activeColor ?? const Color(0xFF090A0C),
+              overlayColor: const Color(0x14090A0C),
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            ),
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              onChanged: onChanged,
+            ),
           ),
         ),
-        SizedBox(
-          width: 72,
+        Container(
+          width: 66,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFDCE4EE),
+            borderRadius: BorderRadius.circular(4),
+          ),
           child: Text(
             format(value),
-            textAlign: TextAlign.right,
-            style: const TextStyle(color: Colors.white),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF090A0C),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ],
