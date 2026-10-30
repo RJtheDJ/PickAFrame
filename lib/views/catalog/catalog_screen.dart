@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
@@ -42,7 +43,9 @@ class CatalogScreen extends StatefulWidget {
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _catalogSearchController = TextEditingController();
+  final TextEditingController _mapSearchController = TextEditingController();
+  final TextEditingController _draftsSearchController = TextEditingController();
   final ScrollController _catalogScrollController = ScrollController();
 
   int _selectedTopTab = 0; // 0: Catalog, 1: Map (KL), 2: Drafts (12)
@@ -51,6 +54,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
   CatalogFilterState _filterState = CatalogFilterState.empty; // Starts empty
   bool _showMapDirectory = true;
   CatalogMouldingItem? _selectedMoulding;
+
+  // Multi-select & delete state for the Drafts tab
+  bool _isDraftSelectionMode = false;
+  final Set<String> _selectedDraftIds = <String>{};
+  bool _isDeletingDrafts = false;
+
+  TextEditingController get _activeSearchController => switch (_selectedTopTab) {
+        1 => _mapSearchController,
+        2 => _draftsSearchController,
+        _ => _catalogSearchController,
+      };
 
   late final _deps = AppScope.of(context);
   late final Stream<List<CatalogMoulding>> _mouldings = _deps.mouldings.watchMouldings();
@@ -66,9 +80,111 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   void dispose() {
     _drafts.dispose();
-    _searchController.dispose();
+    _catalogSearchController.dispose();
+    _mapSearchController.dispose();
+    _draftsSearchController.dispose();
     _catalogScrollController.dispose();
     super.dispose();
+  }
+
+  void _exitDraftSelectionMode() {
+    setState(() {
+      _isDraftSelectionMode = false;
+      _selectedDraftIds.clear();
+    });
+  }
+
+  void _toggleDraftSelection(String draftId) {
+    setState(() {
+      if (!_selectedDraftIds.remove(draftId)) {
+        _selectedDraftIds.add(draftId);
+      }
+      if (_selectedDraftIds.isEmpty) {
+        _isDraftSelectionMode = false;
+      }
+    });
+  }
+
+  Future<void> _confirmAndDeleteSelectedDrafts() async {
+    if (_selectedDraftIds.isEmpty || _isDeletingDrafts) return;
+    final count = _selectedDraftIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppPalette.surfaceLight,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        title: Text(
+          count == 1 ? 'Delete draft?' : 'Delete $count drafts?',
+          style: const TextStyle(
+            color: AppPalette.obsidianBlack,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          count == 1
+              ? 'This draft will be permanently removed from your account.'
+              : 'These $count drafts will be permanently removed from your account.',
+          style: const TextStyle(
+            color: AppPalette.coolSlate,
+            fontSize: 13.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppPalette.coolSlate,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final idsToDelete = _selectedDraftIds.toList();
+    setState(() => _isDeletingDrafts = true);
+    try {
+      await _drafts.deleteDrafts(idsToDelete);
+      if (!mounted) return;
+      setState(() {
+        _isDeletingDrafts = false;
+        _isDraftSelectionMode = false;
+        _selectedDraftIds.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            idsToDelete.length == 1
+                ? 'Draft deleted'
+                : 'Deleted ${idsToDelete.length} drafts',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeletingDrafts = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete drafts: $e')),
+      );
+    }
   }
 
   /// Dynamically derives the active filter chips from [_filterState].
@@ -233,13 +349,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   List<CatalogMouldingItem> _computeVisibleItems(List<CatalogMouldingItem> all) {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _catalogSearchController.text.trim().toLowerCase();
 
     final filtered = all.where((item) {
       if (query.isNotEmpty) {
         final matchesQuery = item.name.toLowerCase().contains(query) ||
             item.materialClass.toLowerCase().contains(query) ||
-            item.workshopName.toLowerCase().contains(query);
+            item.workshopName.toLowerCase().contains(query) ||
+            item.workshopDistrict.toLowerCase().contains(query);
         if (!matchesQuery) return false;
       }
       if (_filterState.materialClass != null &&
@@ -353,6 +470,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
   /// Grid columns for the available width: 2 on phones, more on tablets.
   static int _columnsFor(double width) => (width / 220).floor().clamp(2, 6);
 
+  static Route<T> _instantTabRoute<T>(Widget page) => PageRouteBuilder<T>(
+        pageBuilder: (_, _, _) => page,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      );
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Vendor>>(
@@ -382,6 +505,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
       null => null,
     };
 
+    final mapQuery = _mapSearchController.text.trim().toLowerCase();
+    final visibleVendors = mapQuery.isEmpty
+        ? vendors
+        : vendors.where((v) {
+            return v.name.toLowerCase().contains(mapQuery) ||
+                v.address.toLowerCase().contains(mapQuery) ||
+                v.specialties.any((s) => s.toLowerCase().contains(mapQuery));
+          }).toList();
+
     return Scaffold(
       backgroundColor: AppPalette.background,
       body: SafeArea(
@@ -391,10 +523,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
             CatalogHeaderSection(
               selectedTabIndex: _selectedTopTab,
               draftCount: _drafts.user == null ? null : _drafts.drafts?.length,
-              onTabSelected: (index) => setState(() => _selectedTopTab = index),
-              searchController: _searchController,
+              onTabSelected: (index) => setState(() {
+                _selectedTopTab = index;
+                if (index != 2 && _isDraftSelectionMode) {
+                  _isDraftSelectionMode = false;
+                  _selectedDraftIds.clear();
+                }
+              }),
+              searchController: _activeSearchController,
               onSearchChanged: (_) => setState(() {}),
               onBackTap: () {
+                if (_isDraftSelectionMode) {
+                  _exitDraftSelectionMode();
+                  return;
+                }
                 if (_selectedTopTab != 0) {
                   setState(() => _selectedTopTab = 0);
                   return;
@@ -409,7 +551,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             Expanded(
               child: switch (_selectedTopTab) {
                 1 => CatalogMapView(
-                    vendors: vendors,
+                    vendors: visibleVendors,
                     items: allItems,
                     selectedMoulding: selected,
                     onOpenMoulding: _openEditor,
@@ -430,23 +572,31 @@ class _CatalogScreenState extends State<CatalogScreen> {
       bottomNavigationBar: CatalogBottomNavBar(
         currentIndex: _selectedBottomTab,
         onTabSelected: (index) {
-          if (index == 0 && Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
+          if (index == 0) {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
             return;
           }
-          if (index == 1 && _selectedTopTab != 0) {
-            setState(() => _selectedTopTab = 0);
+          if (index == 1) {
+            if (_selectedTopTab != 0) {
+              setState(() {
+                _selectedTopTab = 0;
+                _isDraftSelectionMode = false;
+                _selectedDraftIds.clear();
+              });
+            }
             return;
           }
           if (index == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ExhibitScreen()),
+            Navigator.of(context).pushReplacement(
+              _instantTabRoute(const ExhibitScreen()),
             );
             return;
           }
           if (index == 3) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+            Navigator.of(context).pushReplacement(
+              _instantTabRoute(const MyOrdersScreen()),
             );
             return;
           }
@@ -499,10 +649,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       ? "Couldn't load the catalogue. Check your connection."
                       : allItems.isEmpty
                           ? 'No mouldings listed yet. Frame shops add theirs from the profile menu.'
-                          : 'No mouldings match your active filters',
+                          : 'No mouldings match your active search or filters',
                   onReset: allItems.isEmpty || failed
                       ? null
-                      : () => setState(() => _filterState = CatalogFilterState.empty),
+                      : () => setState(() {
+                            _filterState = CatalogFilterState.empty;
+                            _catalogSearchController.clear();
+                          }),
                 )
               else
                 LayoutBuilder(
@@ -553,7 +706,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 
-  /// The user's saved drafts; tapping one hangs it in the Exhibit room.
+  /// The user's saved drafts; tapping one hangs it in the Exhibit room,
+  /// and long-pressing enters multi-select mode to delete drafts from Firestore.
   Widget _buildDraftsTab() {
     final drafts = _drafts.drafts;
     if (_drafts.userKnown && _drafts.user == null) {
@@ -569,24 +723,184 @@ class _CatalogScreenState extends State<CatalogScreen> {
         message: 'No saved drafts yet. Frame an artwork with + and tap Save.',
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) => GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _columnsFor(constraints.maxWidth),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.78,
+
+    // Prune any selected draft IDs that no longer exist
+    final existingIds = drafts.map((d) => d.id).toSet();
+    _selectedDraftIds.retainAll(existingIds);
+    if (_isDraftSelectionMode && _selectedDraftIds.isEmpty && drafts.isEmpty) {
+      _isDraftSelectionMode = false;
+    }
+
+    final query = _draftsSearchController.text.trim().toLowerCase();
+    final filteredDrafts = query.isEmpty
+        ? drafts
+        : drafts.where((d) {
+            return d.title.toLowerCase().contains(query) ||
+                d.design.finish.name.toLowerCase().contains(query);
+          }).toList();
+
+    if (filteredDrafts.isEmpty) {
+      return Align(
+        alignment: Alignment.topCenter,
+        child: _EmptyCatalog(
+          icon: Icons.search_off_rounded,
+          message: 'No drafts match "${_draftsSearchController.text.trim()}"',
+          onReset: () => setState(() => _draftsSearchController.clear()),
         ),
-        itemCount: drafts.length,
-        itemBuilder: (context, i) => DraftCard(
-          viewModel: _drafts,
-          draft: drafts[i],
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ExhibitRoomScreen(exhibit: _drafts, drafts: [drafts[i]]),
-          )),
+      );
+    }
+
+    final allFilteredSelected =
+        filteredDrafts.every((d) => _selectedDraftIds.contains(d.id));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_isDraftSelectionMode)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppPalette.slateTintSurface,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppPalette.borderLight),
+            ),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: _isDeletingDrafts ? null : _exitDraftSelectionMode,
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: AppPalette.obsidianBlack,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${_selectedDraftIds.length} selected',
+                  style: AppTheme.monoStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.obsidianBlack,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                  onPressed: _isDeletingDrafts
+                      ? null
+                      : () {
+                          setState(() {
+                            if (allFilteredSelected) {
+                              for (final d in filteredDrafts) {
+                                _selectedDraftIds.remove(d.id);
+                              }
+                            } else {
+                              for (final d in filteredDrafts) {
+                                _selectedDraftIds.add(d.id);
+                              }
+                            }
+                          });
+                        },
+                  child: Text(
+                    allFilteredSelected ? 'Deselect all' : 'Select all',
+                    style: AppTheme.monoStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppPalette.midnightSlate,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppPalette.borderLight,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  onPressed: (_selectedDraftIds.isEmpty || _isDeletingDrafts)
+                      ? null
+                      : _confirmAndDeleteSelectedDrafts,
+                  icon: _isDeletingDrafts
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: Text(
+                    _selectedDraftIds.isEmpty
+                        ? 'Delete'
+                        : 'Delete (${_selectedDraftIds.length})',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) => GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _columnsFor(constraints.maxWidth),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.78,
+              ),
+              itemCount: filteredDrafts.length,
+              itemBuilder: (context, i) {
+                final draft = filteredDrafts[i];
+                final isSelected = _selectedDraftIds.contains(draft.id);
+                return DraftCard(
+                  viewModel: _drafts,
+                  draft: draft,
+                  selected: _isDraftSelectionMode ? isSelected : null,
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                    setState(() {
+                      _isDraftSelectionMode = true;
+                      _selectedDraftIds.add(draft.id);
+                    });
+                  },
+                  onTap: () {
+                    if (_isDraftSelectionMode) {
+                      _toggleDraftSelection(draft.id);
+                      return;
+                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ExhibitRoomScreen(
+                          exhibit: _drafts,
+                          drafts: [draft],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

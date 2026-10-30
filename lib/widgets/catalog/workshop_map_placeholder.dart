@@ -56,6 +56,8 @@ class WorkshopMapPlaceholder extends StatelessWidget {
                   moulding != null
                       ? 'KL Workshop Map · ${moulding.name}'
                       : 'KL Workshop Map Directory',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTheme.monoStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -91,7 +93,7 @@ class WorkshopMapPlaceholder extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(5),
               child: SizedBox(
-                height: 154,
+                height: 164,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -124,153 +126,163 @@ class WorkshopMapPlaceholder extends StatelessWidget {
 
                     // Center Overlay: either Selected Moulding Workshop Origin or Default Overview
                     Center(
-                      child: moulding != null
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.background.withValues(alpha: 0.94),
-                                    borderRadius: BorderRadius.circular(3),
-                                    border: Border.all(
-                                      color: AppPalette.borderLight,
-                                      width: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: moulding != null
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppPalette.background.withValues(alpha: 0.94),
+                                      borderRadius: BorderRadius.circular(3),
+                                      border: Border.all(
+                                        color: AppPalette.borderLight,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'FRAME SOURCE · ${moulding.name.toUpperCase()}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTheme.monoStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppPalette.coolSlate,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
-                                  child: Text(
-                                    'FRAME SOURCE · ${moulding.name.toUpperCase()}',
-                                    style: AppTheme.monoStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppPalette.coolSlate,
-                                      letterSpacing: 0.5,
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 7,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.obsidianBlack,
-                                    borderRadius: BorderRadius.circular(5),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppPalette.obsidianBlack.withValues(alpha: 0.18),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on_rounded,
-                                        size: 15,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          moulding.workshopName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
+                                    decoration: BoxDecoration(
+                                      color: AppPalette.obsidianBlack,
+                                      borderRadius: BorderRadius.circular(5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppPalette.obsidianBlack.withValues(alpha: 0.18),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_rounded,
+                                          size: 15,
+                                          color: Colors.white,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            moulding.workshopName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppPalette.background.withValues(alpha: 0.92),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      '${moulding.workshopDistrict} · Tap map for details →',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: AppPalette.obsidianBlack,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.background.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: Text(
-                                    '${moulding.workshopDistrict} · Tap map for details →',
-                                    style: const TextStyle(
-                                      color: AppPalette.obsidianBlack,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.background.withValues(alpha: 0.94),
-                                    borderRadius: BorderRadius.circular(3),
-                                    border: Border.all(
-                                      color: AppPalette.borderLight,
-                                      width: 1,
+                                ],
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
+                                    decoration: BoxDecoration(
+                                      color: AppPalette.background.withValues(alpha: 0.94),
+                                      borderRadius: BorderRadius.circular(3),
+                                      border: Border.all(
+                                        color: AppPalette.borderLight,
+                                        width: 1,
                                       ),
-                                    ],
-                                  ),
-                                  child: Text(
-                                    '$workshopCount ${workshopCount == 1 ? 'WORKSHOP' : 'WORKSHOPS'} CONNECTED',
-                                    style: AppTheme.monoStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppPalette.obsidianBlack,
-                                      letterSpacing: 0.5,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      '$workshopCount ${workshopCount == 1 ? 'WORKSHOP' : 'WORKSHOPS'} CONNECTED',
+                                      style: AppTheme.monoStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppPalette.obsidianBlack,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.background.withValues(alpha: 0.78),
-                                    borderRadius: BorderRadius.circular(2),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppPalette.background.withValues(alpha: 0.78),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                    child: const Text(
+                                      'Kuala Lumpur directory',
+                                      style: TextStyle(
+                                        color: AppPalette.obsidianBlack,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
-                                  child: const Text(
-                                    'Kuala Lumpur directory',
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Kuala Lumpur',
                                     style: TextStyle(
-                                      color: AppPalette.obsidianBlack,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
+                                      color: AppPalette.darkCharcoal,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Kuala Lumpur',
-                                  style: TextStyle(
-                                    color: AppPalette.darkCharcoal,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                      ),
                     ),
                   ],
                 ),

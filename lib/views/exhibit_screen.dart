@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../app/app_dependencies.dart';
 import '../app/app_theme.dart';
 import '../view_models/exhibit_viewmodel.dart';
+import '../widgets/catalog/catalog_bottom_nav_bar.dart';
 import '../widgets/exhibit/draft_card.dart';
+import 'catalog/catalog_screen.dart';
+import 'editor_screen.dart';
 import 'exhibit_room_screen.dart';
+import 'orders/my_orders_screen.dart';
 
 /// Exhibit tab: pick saved drafts, then hang them together in a room.
 class ExhibitScreen extends StatefulWidget {
@@ -26,6 +30,12 @@ class _ExhibitScreenState extends State<ExhibitScreen> {
     initialSelection: widget.initialSelection,
   );
 
+  static Route<T> _instantTabRoute<T>(Widget page) => PageRouteBuilder<T>(
+        pageBuilder: (_, _, _) => page,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      );
+
   @override
   void dispose() {
     viewModel.dispose();
@@ -46,25 +56,64 @@ class _ExhibitScreenState extends State<ExhibitScreen> {
             foregroundColor: AppPalette.obsidianBlack,
           ),
           body: _body(),
-          bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppPalette.obsidianBlack,
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                icon: const Icon(Icons.museum_outlined),
-                label: Text(selected.isEmpty ? 'Pick drafts to hang' : 'Open room (${selected.length})'),
-                onPressed: selected.isEmpty
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ExhibitRoomScreen(exhibit: viewModel, drafts: selected),
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppPalette.obsidianBlack,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  icon: const Icon(Icons.museum_outlined),
+                  label: Text(
+                    selected.isEmpty
+                        ? 'Pick drafts to hang'
+                        : 'Open room (${selected.length})',
+                  ),
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ExhibitRoomScreen(
+                                exhibit: viewModel,
+                                drafts: selected,
+                              ),
+                            ),
                           ),
-                        ),
+                ),
               ),
-            ),
+              CatalogBottomNavBar(
+                currentIndex: 2,
+                onTabSelected: (index) {
+                  if (index == 2) return;
+                  if (index == 0) {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
+                    return;
+                  }
+                  if (index == 1) {
+                    Navigator.of(context).pushReplacement(
+                      _instantTabRoute(const CatalogScreen()),
+                    );
+                    return;
+                  }
+                  if (index == 3) {
+                    Navigator.of(context).pushReplacement(
+                      _instantTabRoute(const MyOrdersScreen()),
+                    );
+                    return;
+                  }
+                },
+                onCenterAddTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const EditorScreen()),
+                  );
+                },
+              ),
+            ],
           ),
         );
       },

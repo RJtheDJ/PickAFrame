@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/frame_profile.dart';
 
-/// Horizontally scrolling chips, one per [FrameProfile].
+/// Horizontally scrolling architectural pills, one per [FrameProfile].
 class ProfileSelector extends StatelessWidget {
   const ProfileSelector({
     super.key,
@@ -21,24 +21,35 @@ class ProfileSelector extends StatelessWidget {
         children: [
           for (final profile in FrameProfile.values)
             Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ChoiceChip(
-                label: Text(profile.label),
-                selected: profile == selected,
-                onSelected: (isSelected) {
-                  if (isSelected) onSelected(profile);
-                },
-                backgroundColor: Colors.black,
-                selectedColor: Colors.blueAccent,
-                labelStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              padding: const EdgeInsets.only(right: 6.0),
+              child: GestureDetector(
+                onTap: () => onSelected(profile),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: profile == selected
+                        ? const Color(0xFF090A0C)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: profile == selected
+                          ? const Color(0xFF090A0C)
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  child: Text(
+                    profile.label,
+                    style: TextStyle(
+                      color: profile == selected
+                          ? Colors.white
+                          : const Color(0xFF090A0C),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: Colors.transparent),
-                ),
-                showCheckmark: false,
               ),
             ),
         ],
