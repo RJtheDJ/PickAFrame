@@ -11,6 +11,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pickaframe_application/models/user_profile.dart';
 import 'package:pickaframe_application/models/venue.dart';
 import 'package:pickaframe_application/repositories/auth_repository.dart';
+import 'package:pickaframe_application/repositories/switch_latest.dart';
 
 /// Turns Firebase's error codes into messages for the sign-in screens.
 String _messageFor(FirebaseAuthException e) => switch (e.code) {
@@ -48,7 +49,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Stream<UserProfile?> watchUser() {
-    return _auth.authStateChanges().asyncExpand((user) {
+    return switchLatest(_auth.authStateChanges(), (User? user) {
       if (user == null) {
         _currentUser = null;
         return Stream.value(null);

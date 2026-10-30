@@ -30,6 +30,16 @@ const SECURITY_HEADERS = {
 	"Referrer-Policy": "no-referrer",
 };
 
+// Lets the Flutter web app call the Worker from any origin (flutter run picks
+// a random localhost port). "*" is safe here: access is granted by the Bearer
+// token, never by cookies.
+const CORS_HEADERS = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+	"Access-Control-Allow-Headers": "Authorization, Content-Type",
+	"Access-Control-Max-Age": "86400",
+};
+
 function isPng(data: ArrayBuffer): boolean {
 	const bytes = new Uint8Array(data, 0, Math.min(8, data.byteLength));
 	return bytes.length === 8 && PNG_SIGNATURE.every((b, i) => bytes[i] === b);
@@ -37,8 +47,12 @@ function isPng(data: ArrayBuffer): boolean {
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const response = await handle(request, env);
-		for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+		// Browsers send a token-less OPTIONS preflight before each PUT/GET with
+		// an Authorization header; answer it before the token check.
+		const response = request.method === "OPTIONS"
+			? new Response(null, { status: 204 })
+			: await handle(request, env);
+		for (const [name, value] of Object.entries({ ...SECURITY_HEADERS, ...CORS_HEADERS })) {
 			response.headers.set(name, value);
 		}
 		return response;

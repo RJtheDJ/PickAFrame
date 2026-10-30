@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_dependencies.dart';
 import '../../models/user_profile.dart';
 import '../catalog/catalog_screen.dart';
 import 'sign_up_screen.dart';
@@ -27,4 +28,22 @@ void openHomeAfterSignIn(BuildContext context, UserProfile profile) {
     MaterialPageRoute(builder: (_) => next),
     (route) => route.isFirst,
   );
+}
+
+/// Signs out and goes back to the welcome screen, which turns back into the
+/// landing page once nobody is signed in. Every screen opened on top of it
+/// (catalogue, orders, editor) is closed so none of them keeps showing the
+/// old account.
+Future<void> signOutAndReturnToWelcome(BuildContext context) async {
+  final auth = AppScope.of(context).auth;
+  final navigator = Navigator.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await auth.signOut();
+  } on Exception catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Could not log out: $e')));
+    return;
+  }
+  navigator.popUntil((route) => route.isFirst);
+  messenger.showSnackBar(const SnackBar(content: Text('Logged out')));
 }

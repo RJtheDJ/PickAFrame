@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pickaframe_application/app/app_dependencies.dart';
 import 'package:pickaframe_application/models/user_profile.dart';
 import 'package:pickaframe_application/models/venue.dart';
 import 'package:pickaframe_application/repositories/in_memory/in_memory_repositories.dart';
+import 'package:pickaframe_application/views/auth/auth_navigation.dart';
 
 const _venue = Venue(
   name: 'Sareng Art Gallery',
@@ -62,5 +65,43 @@ void main() {
 
     expect(updated.vendorId, isNull);
     expect(updated.venue, isNull);
+  });
+
+  testWidgets('logging out signs out and closes every screen above the first',
+      (tester) async {
+    final deps = AppDependencies.inMemory();
+    await deps.auth.registerWithEmail(
+      email: 'art@b.my',
+      password: 'secret1',
+      displayName: 'Art',
+    );
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(AppScope(
+      dependencies: deps,
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        home: const Scaffold(body: Text('welcome')),
+      ),
+    ));
+    navigatorKey.currentState!.push(MaterialPageRoute<void>(
+      builder: (_) => const Scaffold(body: Text('catalogue')),
+    ));
+    navigatorKey.currentState!.push(MaterialPageRoute<void>(
+      builder: (context) => Scaffold(
+        body: TextButton(
+          onPressed: () => signOutAndReturnToWelcome(context),
+          child: const Text('Log out'),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Log out'));
+    await tester.pumpAndSettle();
+
+    expect(deps.auth.currentUser, isNull);
+    expect(find.text('welcome'), findsOneWidget);
+    expect(find.text('catalogue'), findsNothing);
+    expect(find.text('Logged out'), findsOneWidget);
   });
 }
