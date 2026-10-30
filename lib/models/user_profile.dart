@@ -1,3 +1,5 @@
+import 'venue.dart';
+
 /// The account types from the proposal (section 3.1). The role decides which
 /// dashboard a user lands on after signing in.
 enum UserRole {
@@ -21,6 +23,7 @@ class UserProfile {
     required this.displayName,
     this.role,
     this.vendorId,
+    this.venue,
   });
 
   /// Firebase Auth user id.
@@ -34,12 +37,22 @@ class UserProfile {
   /// For frame shop owners: their [Vendor] listing.
   final String? vendorId;
 
-  UserProfile copyWith({String? displayName, UserRole? role, String? vendorId}) => UserProfile(
+  /// For gallery and frame shop owners: the venue picked during sign-up.
+  final Venue? venue;
+
+  UserProfile copyWith({
+    String? displayName,
+    UserRole? role,
+    String? vendorId,
+    Venue? venue,
+  }) =>
+      UserProfile(
         uid: uid,
         email: email,
         displayName: displayName ?? this.displayName,
         role: role ?? this.role,
         vendorId: vendorId ?? this.vendorId,
+        venue: venue ?? this.venue,
       );
 
   Map<String, Object?> toJson() => {
@@ -48,6 +61,7 @@ class UserProfile {
         'displayName': displayName,
         'role': role?.name,
         'vendorId': vendorId,
+        'venue': venue?.toJson(),
       };
 
   factory UserProfile.fromJson(Map<String, Object?> json) => UserProfile(
@@ -59,5 +73,9 @@ class UserProfile {
           _ => null,
         },
         vendorId: json['vendorId'] as String?,
+        venue: switch (json['venue']) {
+          final Map<Object?, Object?> venue => Venue.fromJson(venue.cast()),
+          _ => null,
+        },
       );
 }

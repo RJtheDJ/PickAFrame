@@ -1,4 +1,5 @@
 import '../models/user_profile.dart';
+import '../models/venue.dart';
 
 /// Sign-in and the current user's profile. Implemented with Firebase Auth +
 /// a `users/{uid}` Firestore document; see docs/ARCHITECTURE.md.
@@ -18,8 +19,9 @@ abstract interface class AuthRepository {
 
   Future<UserProfile> signInWithGoogle();
 
-  /// Completes onboarding (role selection screen).
-  Future<UserProfile> setRole(UserRole role);
+  /// Completes onboarding (sign-up screen). [venue] is required for roles
+  /// that need a location. A frame shop owner's vendor id is their uid.
+  Future<UserProfile> setRole(UserRole role, {Venue? venue});
 
   Future<void> signOut();
 }

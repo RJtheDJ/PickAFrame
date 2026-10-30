@@ -4,6 +4,7 @@ import '../../models/draft.dart';
 import '../../models/order.dart';
 import '../../models/user_profile.dart';
 import '../../models/vendor.dart';
+import '../../models/venue.dart';
 import '../auth_repository.dart';
 import '../draft_repository.dart';
 import '../order_repository.dart';
@@ -99,10 +100,14 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserProfile> setRole(UserRole role) async {
+  Future<UserProfile> setRole(UserRole role, {Venue? venue}) async {
     final current = _current;
     if (current == null) throw const AuthException('Not signed in.');
-    final updated = current.copyWith(role: role);
+    final updated = current.copyWith(
+      role: role,
+      venue: venue,
+      vendorId: role == UserRole.frameShopOwner ? current.uid : null,
+    );
     final account = _accounts[current.email]!;
     _accounts[current.email] = (password: account.password, profile: updated);
     return _signIn(updated);
