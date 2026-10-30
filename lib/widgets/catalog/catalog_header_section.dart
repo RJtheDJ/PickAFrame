@@ -223,7 +223,11 @@ class CatalogHeaderSection extends StatelessWidget {
                           fontSize: 13,
                         ),
                         decoration: InputDecoration(
-                          hintText: selectedTabIndex == 1 ? 'Bangsar, 59100' : 'Search',
+                          hintText: switch (selectedTabIndex) {
+                            1 => 'Bangsar, 59100',
+                            2 => 'Search drafts...',
+                            _ => 'Search mouldings...',
+                          },
                           hintStyle: TextStyle(
                             color: selectedTabIndex == 1
                                 ? AppPalette.obsidianBlack
@@ -236,6 +240,21 @@ class CatalogHeaderSection extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (searchController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          searchController.clear();
+                          onSearchChanged('');
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: AppPalette.coolSlate,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

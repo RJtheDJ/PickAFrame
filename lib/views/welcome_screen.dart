@@ -13,6 +13,7 @@ import 'auth/login_screen.dart';
 import 'auth/sign_up_screen.dart';
 import 'catalog/catalog_screen.dart';
 import 'editor_screen.dart';
+import 'exhibit_screen.dart';
 import 'orders/my_orders_screen.dart';
 
 /// Screen 1 (`WELCOME & DISCOVERY` / Logged-in Default Home Page):
@@ -49,6 +50,12 @@ class WelcomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  static Route<T> _instantTabRoute<T>(Widget page) => PageRouteBuilder<T>(
+        pageBuilder: (_, _, _) => page,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -192,17 +199,19 @@ class WelcomeScreen extends StatelessWidget {
                     if (index == 0) return;
                     if (index == 1) {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const CatalogScreen(),
-                        ),
+                        _instantTabRoute(const CatalogScreen()),
+                      );
+                      return;
+                    }
+                    if (index == 2) {
+                      Navigator.of(context).push(
+                        _instantTabRoute(const ExhibitScreen()),
                       );
                       return;
                     }
                     if (index == 3) {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MyOrdersScreen(),
-                        ),
+                        _instantTabRoute(const MyOrdersScreen()),
                       );
                       return;
                     }

@@ -15,12 +15,14 @@ class DraftCard extends StatelessWidget {
     required this.viewModel,
     required this.draft,
     required this.onTap,
+    this.onLongPress,
     this.selected,
   });
 
   final ExhibitViewModel viewModel;
   final Draft draft;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final bool? selected;
 
   @override
@@ -33,6 +35,7 @@ class DraftCard extends StatelessWidget {
       label: draft.title,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(

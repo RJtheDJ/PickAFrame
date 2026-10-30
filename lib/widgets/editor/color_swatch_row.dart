@@ -23,7 +23,11 @@ class ColorSwatchRow extends StatelessWidget {
           width: 72,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Color(0xFF090A0C),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Expanded(
@@ -42,8 +46,10 @@ class ColorSwatchRow extends StatelessWidget {
                         color: color,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: color == selected ? Colors.blueAccent : Colors.white38,
-                          width: color == selected ? 3 : 1,
+                          color: color == selected
+                              ? const Color(0xFF090A0C)
+                              : const Color(0xFFCBD5E1),
+                          width: color == selected ? 2.5 : 1,
                         ),
                       ),
                     ),

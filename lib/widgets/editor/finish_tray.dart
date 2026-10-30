@@ -4,7 +4,7 @@ import '../../data/finish_catalog.dart';
 import '../../models/frame_finish.dart';
 import '../../view_models/editor_viewmodel.dart';
 
-/// Row of swatches for the current finish kind.
+/// Row of architectural swatches for the current finish kind.
 class FinishTray extends StatelessWidget {
   const FinishTray({super.key, required this.viewModel});
 
@@ -21,6 +21,7 @@ class FinishTray extends StatelessWidget {
               selected: current is ColorFinish && current.color == color,
               decoration: BoxDecoration(color: color),
               tooltip: 'Paint',
+              label: 'PAINT',
               onTap: () => viewModel.setColor(color),
             ),
         ],
@@ -35,6 +36,7 @@ class FinishTray extends StatelessWidget {
                 ),
               ),
               tooltip: wood.name,
+              label: wood.name,
               onTap: () => viewModel.selectWood(wood),
             ),
         ],
@@ -42,7 +44,6 @@ class FinishTray extends StatelessWidget {
           for (final metal in metalFinishes)
             _Swatch(
               selected: current == metal,
-              // A quick sheen so the swatch reads as metal.
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -55,6 +56,7 @@ class FinishTray extends StatelessWidget {
                 ),
               ),
               tooltip: metal.name,
+              label: metal.name,
               onTap: () => viewModel.selectMetal(metal),
             ),
         ],
@@ -71,6 +73,7 @@ class FinishTray extends StatelessWidget {
                 ),
               ),
               tooltip: moulding.name,
+              label: moulding.name,
               onTap: () => viewModel.selectPhotoMoulding(moulding),
             ),
         ],
@@ -86,13 +89,15 @@ class _Swatch extends StatelessWidget {
     required this.decoration,
     required this.tooltip,
     required this.onTap,
-    this.width = 52,
+    this.label,
+    this.width = 64,
   });
 
   final bool selected;
   final BoxDecoration decoration;
   final String tooltip;
   final VoidCallback onTap;
+  final String? label;
   final double width;
 
   @override
@@ -103,13 +108,43 @@ class _Swatch extends StatelessWidget {
         onTap: onTap,
         child: Container(
           width: width,
-          margin: const EdgeInsets.only(right: 10, top: 4, bottom: 4),
-          decoration: decoration.copyWith(
-            borderRadius: BorderRadius.circular(10),
+          margin: const EdgeInsets.only(right: 10, top: 2, bottom: 2),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: selected ? Colors.blueAccent : Colors.white38,
-              width: selected ? 3 : 1,
+              color: selected ? const Color(0xFF090A0C) : const Color(0xFFDCE4EE),
+              width: selected ? 2 : 1,
             ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: decoration.copyWith(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              if (selected)
+                Positioned(
+                  right: 3,
+                  bottom: 3,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF090A0C),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 11,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

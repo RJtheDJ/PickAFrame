@@ -15,14 +15,15 @@ import '../services/draft_save_service.dart';
 import '../view_models/editor_viewmodel.dart';
 import '../widgets/editor/frame_panel.dart';
 import '../widgets/editor/mat_panel.dart';
-import '../widgets/frame_renderer.dart';
 import '../widgets/export_button.dart';
+import '../widgets/frame_renderer.dart';
 import '../widgets/workspace_layout.dart';
 import 'artwork_crop_screen.dart';
 import 'exhibit_screen.dart';
 
-/// The core visualizer: frame preview on top, tabbed controls below. Rooms
-/// are previewed from the Exhibit tab, with saved drafts.
+/// The core visualizer styled in the Light Architectural Studio theme (Image 1)
+/// with a pinned top preview stage + tabbed bottom control deck (`Frame` | `Mat`)
+/// so the live frame and mat border remain visible at all times while editing.
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key, this.catalogMoulding});
 
@@ -190,13 +191,24 @@ class _EditorScreenState extends State<EditorScreen> {
       listenable: viewModel,
       builder: (context, child) {
         final design = viewModel.design;
+        final outerWidthMm = design.outerMm.width.round();
+        final outerHeightMm = design.outerMm.height.round();
 
         return Scaffold(
-          backgroundColor: Colors.blueGrey[900],
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Visualizer'),
-            backgroundColor: Colors.black87,
-            foregroundColor: Colors.white,
+            title: const Text(
+              'Visualizer',
+              style: TextStyle(
+                color: Color(0xFF090A0C),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF090A0C),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             actions: [
               IconButton(
                 icon: _saving
@@ -214,77 +226,268 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
               if (viewModel.artwork case final artwork?)
                 IconButton(
-                  icon: const Icon(Icons.crop),
+                  icon: const Icon(Icons.crop, size: 20),
                   onPressed: () => _adjustCrop(artwork),
                   tooltip: 'Adjust crop',
                 ),
               IconButton(
-                icon: const Icon(Icons.image),
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 21),
                 onPressed: _addArtwork,
                 tooltip: 'Upload Artwork',
               ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12, left: 4),
+                child: GestureDetector(
+                  onTap: _saving ? null : _save,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF090A0C),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_saving)
+                          const SizedBox.square(
+                            dimension: 13,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        else
+                          const Icon(Icons.save_outlined, size: 14, color: Colors.white),
+                        const SizedBox(width: 5),
+                        const Text(
+                          'Save',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
-            bottom: viewModel.isLoadingTexture
-                ? const PreferredSize(
-                    preferredSize: Size.fromHeight(2),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  )
-                : null,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(2),
+              child: viewModel.isLoadingTexture
+                  ? const LinearProgressIndicator(
+                      minHeight: 2,
+                      color: Color(0xFF090A0C),
+                      backgroundColor: Color(0xFFEEF2F7),
+                    )
+                  : const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+            ),
           ),
           body: WorkspaceLayout(
-            preview: Column(
-              children: [
-                // FRAME PREVIEW
-                Expanded(
-                  child: FrameRenderer(
-                    design: design,
-                    light: viewModel.light,
-                    finishImages: viewModel.finishImages,
-                    shaderResources: viewModel.shaderResources,
-                    artworkImage: viewModel.artwork?.image,
-                    wallColor: Colors.blueGrey[900]!,
-                    exportKey: _exportKey,
-                  ),
+            controlsHeight: 350,
+            // 1. PINNED TOP PREVIEW STAGE (Always visible while adjusting Frame or Mat!)
+            preview: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(6, 8, 10, 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}'
-                    '${switch (viewModel.catalogMoulding) {
-                      final m? => '\n${m.name} · RM ${m.priceFor(design).toStringAsFixed(2)} moulding',
-                      null => '',
-                    }}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            // CONTROL PANEL
-            controls: Theme(
-              data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-              // Material, so the Mat tab's switch shows its ink on the dark panel.
-              child: Material(
-                color: Colors.black87,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: SafeArea(
-                    top: false,
-                    child: DefaultTabController(
-                      length: 2,
-                      child: Column(
+                child: Column(
+                  children: [
+                    // Top horizontal ruler: |-- [ outer W mm ] --|
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
                         children: [
-                          const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
-                          Expanded(
-                            child: TabBarView(
+                          const Text(
+                            '⊢',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                          ),
+                          const Expanded(
+                            child: Divider(color: Color(0xFFE2E8F0), thickness: 1),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCE4EE),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'outer $outerWidthMm mm',
+                              style: const TextStyle(
+                                color: Color(0xFF090A0C),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Divider(color: Color(0xFFE2E8F0), thickness: 1),
+                          ),
+                          const Text(
+                            '⊣',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+
+                    // Left vertical ruler + Live FrameRenderer
+                    Expanded(
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 22,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                FramePanel(viewModel: viewModel),
-                                MatPanel(viewModel: viewModel),
+                                const Text(
+                                  '⊤',
+                                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                                ),
+                                const SizedBox(height: 4),
+                                RotatedBox(
+                                  quarterTurns: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCE4EE),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '$outerHeightMm mm',
+                                      style: const TextStyle(
+                                        color: Color(0xFF090A0C),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  '⊥',
+                                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                                ),
                               ],
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: viewModel.artwork == null ? _addArtwork : null,
+                              child: FrameRenderer(
+                                design: design,
+                                light: viewModel.light,
+                                finishImages: viewModel.finishImages,
+                                shaderResources: viewModel.shaderResources,
+                                artworkImage: viewModel.artwork?.image,
+                                wallColor: Colors.white,
+                                exportKey: _exportKey,
+                              ),
                             ),
                           ),
                         ],
                       ),
+                    ),
+
+                    // Bottom dimensions & active moulding readout pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2F7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}'
+                        '${switch (viewModel.catalogMoulding) {
+                          final m? => '  ·  ${m.name} (RM ${m.priceFor(design).toStringAsFixed(2)})',
+                          null => '',
+                        }}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF090A0C),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2. BOTTOM ARCHITECTURAL TABBED CONTROL DECK (Frame | Mat)
+            controls: Material(
+              color: Colors.white,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: SafeArea(
+                  top: false,
+                  child: DefaultTabController(
+                    length: 2,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 36,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2F7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: TabBar(
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.transparent,
+                            indicator: BoxDecoration(
+                              color: const Color(0xFF090A0C),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            labelColor: Colors.white,
+                            unselectedLabelColor: const Color(0xFF4B5563),
+                            labelStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                            ),
+                            unselectedLabelStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'monospace',
+                            ),
+                            tabs: const [
+                              Tab(text: 'Frame & Finish'),
+                              Tab(text: 'Precision Matting'),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              FramePanel(viewModel: viewModel),
+                              MatPanel(viewModel: viewModel),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

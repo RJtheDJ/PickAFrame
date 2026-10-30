@@ -88,6 +88,22 @@ class ExhibitViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes [draftIds] from Firestore (and local state).
+  Future<void> deleteDrafts(Iterable<String> draftIds) async {
+    final ids = draftIds.toList();
+    for (final id in ids) {
+      await _drafts.deleteDraft(id);
+      _selected.remove(id);
+      _artworks.remove(id);
+      _artworkErrors.remove(id);
+      _loading.remove('artwork:$id');
+    }
+    if (_list != null) {
+      _list = _list!.where((d) => !ids.contains(d.id)).toList();
+    }
+    if (!_disposed) notifyListeners();
+  }
+
   void retryArtwork(Draft draft) {
     _artworkErrors.remove(draft.id);
     notifyListeners();

@@ -46,8 +46,8 @@ class _ExhibitRoomScreenState extends State<ExhibitRoomScreen> {
         backgroundColor: Colors.blueGrey[900],
         appBar: AppBar(
           title: const Text('Exhibit room'),
-          backgroundColor: Colors.black87,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
           actions: [ExportButton(boundaryKey: _exportKey, message: _shareMessage)],
         ),
         body: WorkspaceLayout(
@@ -59,10 +59,10 @@ class _ExhibitRoomScreenState extends State<ExhibitRoomScreen> {
             exportKey: _exportKey,
           ),
           controls: Theme(
-            data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+            data: ThemeData(brightness: Brightness.light, useMaterial3: true),
             // Material, so list tiles' ink shows on the dark panel.
             child: Material(
-              color: Colors.black87,
+              color: Colors.white,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SafeArea(top: false, child: RoomPanel(room: room)),
