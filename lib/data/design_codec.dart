@@ -17,9 +17,10 @@ Map<String, Object?> encodeDesign(FrameDesign design) => {
       'moulding': {
         'profile': design.moulding.profile.name,
         'faceWidthMm': design.moulding.faceWidthMm,
+        if (design.moulding.catalogId != null) 'catalogId': design.moulding.catalogId,
       },
       'mat': _encodeMat(design.mat),
-      'finish': _encodeFinish(design.finish),
+      'finish': encodeFinish(design.finish),
     };
 
 /// Throws [FormatException] if [json] isn't a design written by [encodeDesign].
@@ -32,9 +33,10 @@ FrameDesign decodeDesign(Map<String, Object?> json) {
       moulding: Moulding(
         profile: FrameProfile.values.byName(moulding['profile'] as String),
         faceWidthMm: _num(moulding['faceWidthMm']),
+        catalogId: moulding['catalogId'] as String?,
       ),
       mat: _decodeMat(json['mat'] as Map),
-      finish: _decodeFinish(json['finish'] as Map),
+      finish: decodeFinish(json['finish'] as Map),
     );
   } on FormatException {
     rethrow;
@@ -67,14 +69,16 @@ MatSpec _decodeMat(Map json) => MatSpec(
       revealMm: _num(json['revealMm']),
     );
 
-Map<String, Object?> _encodeFinish(FrameFinish finish) => switch (finish) {
+/// A finish on its own, as stored in designs and catalogue mouldings.
+Map<String, Object?> encodeFinish(FrameFinish finish) => switch (finish) {
       ColorFinish(:final color) => {'kind': 'paint', 'color': color.toARGB32()},
       WoodFinish(:final id) => {'kind': 'wood', 'id': id},
       MetalFinish(:final id) => {'kind': 'metal', 'id': id},
       PhotoMouldingFinish(:final id) => {'kind': 'ornate', 'id': id},
     };
 
-FrameFinish _decodeFinish(Map json) {
+/// Throws [FormatException] for unknown finishes.
+FrameFinish decodeFinish(Map json) {
   final kind = json['kind'] as String;
   if (kind == 'paint') return ColorFinish(Color(json['color'] as int));
 

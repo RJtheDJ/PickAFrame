@@ -20,8 +20,32 @@ const MAX_BYTES = 25 * 1024 * 1024;
 //cache
 const NO_STORE = "private, no-store";
 
+// Every PNG file starts with these 8 bytes.
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+// Sent on every response: no MIME sniffing, no framing, no referrer leaks.
+const SECURITY_HEADERS = {
+	"X-Content-Type-Options": "nosniff",
+	"X-Frame-Options": "DENY",
+	"Referrer-Policy": "no-referrer",
+};
+
+function isPng(data: ArrayBuffer): boolean {
+	const bytes = new Uint8Array(data, 0, Math.min(8, data.byteLength));
+	return bytes.length === 8 && PNG_SIGNATURE.every((b, i) => bytes[i] === b);
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const response = await handle(request, env);
+		for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+			response.headers.set(name, value);
+		}
+		return response;
+	}
+} satisfies ExportedHandler<Env>;
+
+async function handle(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
 		//split the pathname
 		const parts = url.pathname.split("/");
@@ -71,10 +95,18 @@ export default {
 				return new Response("Only PNG allowed", { status: 415 })
 			}
 
-			//detect file size
+			//detect file size: refuse a declared oversize upload before reading it,
+			//then check the bytes actually received
+			const declared = Number(request.headers.get("Content-Length") ?? "0");
+			if (declared > MAX_BYTES) {
+				return new Response("Maximum image size is 25MB", { status: 413 });
+			}
 			const data = await request.arrayBuffer();
 			if (data.byteLength > MAX_BYTES) {
 				return new Response("Maximum image size is 25MB", { status: 413 });
+			}
+			if (!isPng(data)) {
+				return new Response("Only PNG allowed", { status: 415 });
 			}
 
 			await env.ARTWORKS.put(key, data);
@@ -97,5 +129,4 @@ export default {
 			});
 		}
 		return new Response("Not Found", {status: 404});
-	}
-} satisfies ExportedHandler<Env>;
+}

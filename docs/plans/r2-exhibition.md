@@ -17,9 +17,9 @@ This plan has three phases. Phase 1 is the current work.
 
 | Part | Status |
 |---|---|
-| Task 1: Worker API | 🟡 Done and deployed to `https://artwork-worker.artwork-worker.workers.dev` on the real `pick-a-frame` bucket; checked by hand with real tokens, locally and deployed. Automated tests not written yet. |
-| Task 2: Flutter storage + Save | ⬜ Not started. `Draft.artworkUrl` already exists. |
-| Task 3: Saved Drafts + Exhibition View | 🟡 Built by RJ (29 Oct): Exhibit tab → `ExhibitScreen` (pick drafts) → `ExhibitRoomScreen` (several pieces in the existing rooms). Shows a placeholder artwork until Task 2 sets `AppDependencies.artworkStorage`. |
+| Task 1: Worker API | 🟡 Done and deployed to `https://artwork-worker.artwork-worker.workers.dev` on the real `pick-a-frame` bucket; checked by hand with real tokens, locally and deployed. Automated tests not written yet. 30 Oct: PNG signature check (415), Content-Length check before reading, and security headers added in `src/index.ts`; **needs `npx wrangler deploy`**. |
+| Task 2: Flutter storage + Save | ✅ Built by RJ (30 Oct): `CloudflareArtworkStorage`, `DraftSaveService` (upload first, then the Firestore draft), Save button in the editor. Tests in `test/save_test.dart`. |
+| Task 3: Saved Drafts + Exhibition View | 🟡 Built by RJ (29 Oct): Exhibit tab → `ExhibitScreen` (pick drafts) → `ExhibitRoomScreen` (several pieces in the existing rooms). Loads saved artwork through the Worker. |
 | Task 4: End-to-end walkthrough | ⬜ Not started. |
 
 The R2 binding `ARTWORKS` already points at a bucket named `pick-a-frame` in

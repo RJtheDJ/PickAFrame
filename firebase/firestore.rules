@@ -1,0 +1,146 @@
+rules_version = '2';
+
+// Server-side access rules for PickAFrame's Firestore. The app talks to
+// Firestore directly, so these rules are the only thing standing between a
+// modified app and other people's data. Tests: firebase/rules.test.mjs.
+// Deploy: see firebase/README.md.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isFrameShop() {
+      return signedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && profile().role == 'frameShopOwner';
+    }
+
+    // The update touches only these fields.
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function isText(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function isNonEmptyText(value, maxLength) {
+      return isText(value, maxLength) && value.size() > 0;
+    }
+
+    function isOptionalText(data, field, maxLength) {
+      return !(field in data) || data[field] == null || isText(data[field], maxLength);
+    }
+
+    function inRange(value, low, high) {
+      return value is number && value >= low && value <= high;
+    }
+
+    // ---- users: private profile, readable and writable only by its owner.
+    match /users/{uid} {
+      allow read: if isUser(uid);
+      allow create: if isUser(uid)
+          && request.resource.data.uid == uid
+          && isText(request.resource.data.displayName, 100);
+      // The uid and email are fixed; the role can only be set once.
+      allow update: if isUser(uid)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.email == resource.data.email
+          && (!('role' in resource.data) || resource.data.role == null
+              || request.resource.data.role == resource.data.role)
+          && isText(request.resource.data.displayName, 100);
+      allow delete: if false;
+    }
+
+    // ---- vendors: public directory; a frame shop edits only its own listing,
+    // whose id is the owner's uid.
+    match /vendors/{vendorId} {
+      allow read: if true;
+      allow create, update: if isUser(vendorId)
+          && isFrameShop()
+          && request.resource.data.id == vendorId
+          && request.resource.data.ownerUid == vendorId
+          && isNonEmptyText(request.resource.data.name, 120)
+          && isNonEmptyText(request.resource.data.address, 300)
+          && inRange(request.resource.data.latitude, -90, 90)
+          && inRange(request.resource.data.longitude, -180, 180);
+      allow delete: if isUser(vendorId);
+    }
+
+    // ---- mouldings: public catalogue; a frame shop manages only its own.
+    function validMoulding(data, id) {
+      return data.id == id
+          && isNonEmptyText(data.name, 80)
+          && inRange(data.faceWidthMm, 5, 300)
+          && inRange(data.rebateDepthMm, 0, 100)
+          && inRange(data.pricePerMetreRm, 0, 10000)
+          && data.materialClass in ['Wood (Hardwood)', 'Aluminium Metal', 'Composite Polymer', 'Gilded / Foil Leaf']
+          && data.profile is string
+          && data.finish is map;
+    }
+
+    match /mouldings/{mouldingId} {
+      allow read: if true;
+      allow create: if isFrameShop()
+          && request.resource.data.vendorId == request.auth.uid
+          && validMoulding(request.resource.data, mouldingId);
+      allow update: if isUser(resource.data.vendorId)
+          && request.resource.data.vendorId == resource.data.vendorId
+          && validMoulding(request.resource.data, mouldingId);
+      allow delete: if isUser(resource.data.vendorId);
+    }
+
+    // ---- drafts: private to their owner.
+    match /drafts/{draftId} {
+      allow read, delete: if isUser(resource.data.ownerUid);
+      allow create: if isUser(request.resource.data.ownerUid)
+          && request.resource.data.id == draftId
+          && isNonEmptyText(request.resource.data.title, 100)
+          && request.resource.data.design is map;
+      allow update: if isUser(resource.data.ownerUid)
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.id == draftId
+          && isNonEmptyText(request.resource.data.title, 100)
+          && request.resource.data.design is map;
+    }
+
+    // ---- orders: visible to the customer and the workshop. The customer
+    // creates it (unquoted, at the first stage); after that only the
+    // workshop changes it, and only its quote and production stage, forwards.
+    function stageIndex(stage) {
+      return {
+        'submitted': 0, 'cut': 1, 'assembled': 2, 'glazed': 3,
+        'readyForDispatch': 4, 'completed': 5
+      }[stage];
+    }
+
+    match /orders/{orderId} {
+      allow read: if isUser(resource.data.customerUid) || isUser(resource.data.vendorId);
+      allow create: if isUser(request.resource.data.customerUid)
+          && request.resource.data.id == orderId
+          && request.resource.data.stage == 'submitted'
+          && (!('quoteRm' in request.resource.data) || request.resource.data.quoteRm == null)
+          && request.resource.data.vendorId is string
+          && exists(/databases/$(database)/documents/vendors/$(request.resource.data.vendorId))
+          && request.resource.data.specLines is list
+          && request.resource.data.specLines.size() <= 20
+          && isOptionalText(request.resource.data, 'title', 100);
+      allow update: if isUser(resource.data.vendorId)
+          && onlyChanges(['stage', 'quoteRm'])
+          && request.resource.data.stage in ['submitted', 'cut', 'assembled', 'glazed', 'readyForDispatch', 'completed']
+          && stageIndex(request.resource.data.stage) >= stageIndex(resource.data.stage)
+          && (request.resource.data.quoteRm == null || inRange(request.resource.data.quoteRm, 0, 100000));
+      allow delete: if false;
+    }
+  }
+}

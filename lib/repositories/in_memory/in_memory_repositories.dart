@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../models/catalog_moulding.dart';
 import '../../models/draft.dart';
 import '../../models/order.dart';
 import '../../models/user_profile.dart';
@@ -7,6 +8,7 @@ import '../../models/vendor.dart';
 import '../../models/venue.dart';
 import '../auth_repository.dart';
 import '../draft_repository.dart';
+import '../moulding_repository.dart';
 import '../order_repository.dart';
 import '../vendor_repository.dart';
 
@@ -177,4 +179,30 @@ class InMemoryOrderRepository implements OrderRepository {
     if (order == null) throw StateError('No order $orderId');
     _orders.put(orderId, order.copyWith(stage: stage));
   }
+
+  @override
+  Future<void> setQuote(String orderId, double quoteRm) async {
+    final order = _orders[orderId];
+    if (order == null) throw StateError('No order $orderId');
+    _orders.put(orderId, order.copyWith(quoteRm: quoteRm));
+  }
+}
+
+class InMemoryMouldingRepository implements MouldingRepository {
+  final _mouldings = _Collection<CatalogMoulding>();
+
+  int _newestFirst(CatalogMoulding a, CatalogMoulding b) => b.createdAt.compareTo(a.createdAt);
+
+  @override
+  Stream<List<CatalogMoulding>> watchMouldings() => _mouldings.watch((_) => true, _newestFirst);
+
+  @override
+  Stream<List<CatalogMoulding>> watchVendorMouldings(String vendorId) =>
+      _mouldings.watch((m) => m.vendorId == vendorId, _newestFirst);
+
+  @override
+  Future<void> saveMoulding(CatalogMoulding moulding) async => _mouldings.put(moulding.id, moulding);
+
+  @override
+  Future<void> deleteMoulding(String mouldingId) async => _mouldings.remove(mouldingId);
 }

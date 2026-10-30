@@ -15,11 +15,15 @@ class WorkshopMapPlaceholder extends StatelessWidget {
     required this.onCloseTap,
     required this.onMapTap,
     this.selectedMoulding,
+    this.workshopCount = 0,
   });
 
   final VoidCallback onCloseTap;
   final VoidCallback onMapTap;
   final CatalogMouldingItem? selectedMoulding;
+
+  /// Workshops listed in the directory.
+  final int workshopCount;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +235,7 @@ class WorkshopMapPlaceholder extends StatelessWidget {
                                     ],
                                   ),
                                   child: Text(
-                                    '9 VERIFIED WORKSHOPS CONNECTED',
+                                    '$workshopCount ${workshopCount == 1 ? 'WORKSHOP' : 'WORKSHOPS'} CONNECTED',
                                     style: AppTheme.monoStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w800,
@@ -248,7 +252,7 @@ class WorkshopMapPlaceholder extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: const Text(
-                                    'Bangsar · Cheras · Ampang Corridor',
+                                    'Kuala Lumpur directory',
                                     style: TextStyle(
                                       color: AppPalette.obsidianBlack,
                                       fontSize: 11,

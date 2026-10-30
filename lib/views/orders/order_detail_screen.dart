@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
 import '../../models/order.dart';
 import '../../widgets/catalog/catalog_bottom_nav_bar.dart';
@@ -16,13 +18,149 @@ import '../editor_screen.dart';
 ///   (no `Download PDF` button, no `Route to workshop` section).
 /// - Past Order (`order.isPastOrder`): shows up to `Download PDF` (100% width)
 ///   at the bottom of the specification card (no `Route to workshop` section).
-class OrderDetailScreen extends StatelessWidget {
-  const OrderDetailScreen({
-    super.key,
-    required this.order,
-  });
+class OrderDetailScreen extends StatefulWidget {
+  const OrderDetailScreen({super.key, required this.order, this.isShop = false});
 
   final OrderExampleItem order;
+
+  /// Viewed by the workshop: shows the quote and production controls.
+  final bool isShop;
+
+  @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+/// Keeps the order live: the customer sees stage changes as the workshop
+/// makes them, and the workshop sees its own updates.
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  late final _deps = AppScope.of(context);
+  late final FramingOrder? _source = widget.order.source;
+  late final Stream<List<FramingOrder>>? _orders = switch (_source) {
+    null => null,
+    final o => widget.isShop ? _deps.orders.watchVendorOrders(o.vendorId) : _deps.orders.watchCustomerOrders(o.customerUid),
+  };
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() action, String done) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(done)));
+    } catch (e) {
+      debugPrint('Order update failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text("Couldn't update the order: $e")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _setQuote(FramingOrder order) async {
+    final controller = TextEditingController(text: order.priceRm?.toStringAsFixed(2) ?? '');
+    final quote = await showDialog<double>(
+      context: context,
+      builder: (context) {
+        void submit() {
+          final value = double.tryParse(controller.text.trim());
+          if (value != null && value >= 0 && value <= 100000) Navigator.pop(context, value);
+        }
+
+        return AlertDialog(
+          title: const Text('Confirm quote'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+            decoration: InputDecoration(
+              prefixText: 'RM ',
+              helperText: order.estimateRm == null
+                  ? 'Custom frame: no app estimate'
+                  : 'App estimate: RM ${order.estimateRm!.toStringAsFixed(2)}',
+            ),
+            onSubmitted: (_) => submit(),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(onPressed: submit, child: const Text('Save quote')),
+          ],
+        );
+      },
+    ).whenComplete(controller.dispose);
+    if (quote != null) {
+      await _run(() => _deps.orders.setQuote(order.id, quote), 'Quote set to RM ${quote.toStringAsFixed(2)}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<FramingOrder>>(
+      stream: _orders,
+      builder: (context, snapshot) {
+        final live = snapshot.data?.where((o) => o.id == _source?.id).firstOrNull ?? _source;
+        final item = live == null
+            ? widget.order
+            : OrderExampleItem.fromOrder(live, workshopName: widget.order.workshopName);
+        return _OrderDetailPage(
+          order: item,
+          shopActions: widget.isShop && live != null ? _shopActions(live) : null,
+        );
+      },
+    );
+  }
+
+  Widget _shopActions(FramingOrder order) {
+    final next = order.stage.next;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppPalette.background,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppPalette.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            order.quoteRm != null
+                ? 'Your quote: RM ${order.quoteRm!.toStringAsFixed(2)}'
+                : order.estimateRm != null
+                    ? 'App estimate: RM ${order.estimateRm!.toStringAsFixed(2)} (not confirmed)'
+                    : 'Custom frame: not priced yet',
+            style: const TextStyle(fontWeight: FontWeight.w700, color: AppPalette.obsidianBlack),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text(order.quoteRm == null ? 'Confirm quote' : 'Change quote'),
+                onPressed: _busy ? null : () => _setQuote(order),
+              ),
+              if (next != null)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: AppPalette.obsidianBlack),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text('Mark as ${next.label}'),
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() => _deps.orders.updateStage(order.id, next), 'Marked as ${next.label}'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderDetailPage extends StatelessWidget {
+  const _OrderDetailPage({required this.order, this.shopActions});
+
+  final OrderExampleItem order;
+  final Widget? shopActions;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +234,7 @@ class OrderDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
+                    constraints: const BoxConstraints(maxWidth: 720),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -133,6 +271,11 @@ class OrderDetailScreen extends StatelessWidget {
                           activeStage: order.stage,
                           leadTimeLabel: order.leadTimeHeader,
                         ),
+
+                        if (shopActions != null) ...[
+                          const SizedBox(height: 12),
+                          shopActions!,
+                        ],
 
                         const SizedBox(height: 12),
 

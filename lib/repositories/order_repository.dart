@@ -13,4 +13,7 @@ abstract interface class OrderRepository {
 
   /// Moves an order to [stage] (the workshop's production tracker).
   Future<void> updateStage(String orderId, OrderStage stage);
+
+  /// Sets the workshop's confirmed price.
+  Future<void> setQuote(String orderId, double quoteRm);
 }

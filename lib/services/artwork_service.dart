@@ -23,6 +23,33 @@ Future<ui.Image?> pickArtworkPhoto(ImageSource source) async {
   return _decode(await file.readAsBytes());
 }
 
+/// [image] as PNG bytes for saving, scaled down to at most [maxSide] pixels
+/// on its longer side (keeps uploads well under the Worker's 25 MiB limit).
+Future<Uint8List> encodeArtworkPng(ui.Image image, {int maxSide = 2048}) async {
+  final scale = math.min(1.0, maxSide / math.max(image.width, image.height));
+  var source = image;
+  if (scale < 1) {
+    final width = math.max(1, (image.width * scale).round());
+    final height = math.max(1, (image.height * scale).round());
+    final recorder = ui.PictureRecorder();
+    ui.Canvas(recorder).drawImageRect(
+      image,
+      ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+      ui.Paint()..filterQuality = ui.FilterQuality.high,
+    );
+    final picture = recorder.endRecording();
+    source = await picture.toImage(width, height);
+    picture.dispose();
+  }
+  try {
+    final data = await source.toByteData(format: ui.ImageByteFormat.png);
+    return data!.buffer.asUint8List();
+  } finally {
+    if (!identical(source, image)) source.dispose();
+  }
+}
+
 /// Turns [image] a quarter turn clockwise.
 Future<ui.Image> rotateClockwise(ui.Image image) async {
   final recorder = ui.PictureRecorder();

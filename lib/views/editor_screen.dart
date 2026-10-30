@@ -3,8 +3,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../app/app_dependencies.dart';
 import '../models/artwork.dart';
+import '../models/catalog_moulding.dart';
 import '../models/design_summary.dart';
 import '../models/draft.dart';
+import '../models/ids.dart';
 import '../models/order.dart';
 import '../models/perspective.dart';
 import '../models/units.dart';
@@ -12,17 +14,23 @@ import '../models/user_profile.dart';
 import '../models/vendor.dart';
 import '../services/artwork_service.dart';
 import '../services/document_scanner_service.dart';
+import '../services/draft_save_service.dart';
 import '../view_models/editor_viewmodel.dart';
 import '../widgets/editor/frame_panel.dart';
 import '../widgets/editor/mat_panel.dart';
 import '../widgets/frame_renderer.dart';
 import '../widgets/export_button.dart';
+import '../widgets/workspace_layout.dart';
 import 'artwork_crop_screen.dart';
+import 'exhibit_screen.dart';
 
 /// The core visualizer: frame preview on top, tabbed controls below. Rooms
 /// are previewed from the Exhibit tab, with saved drafts.
 class EditorScreen extends StatefulWidget {
-  const EditorScreen({super.key});
+  const EditorScreen({super.key, this.catalogMoulding});
+
+  /// A shop's moulding to start with (catalogue card's "+").
+  final CatalogMoulding? catalogMoulding;
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -31,6 +39,17 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   final EditorViewModel viewModel = EditorViewModel();
   final _exportKey = GlobalKey();
+
+  /// One id per editing session, so saving again updates the same draft.
+  String? _draftId;
+  String _draftTitle = '';
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.catalogMoulding case final moulding?) viewModel.applyCatalogMoulding(moulding);
+  }
 
   @override
   void dispose() {
@@ -99,6 +118,86 @@ class _EditorScreenState extends State<EditorScreen> {
         );
       }
     }
+  }
+
+  /// Saves the framed artwork as a draft: the artwork image to the Worker,
+  /// then the design to Firestore.
+  Future<void> _save() async {
+    final deps = AppScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final user = deps.auth.currentUser;
+    final artwork = viewModel.artwork;
+    if (user == null || user.role == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('Sign in to save drafts.')));
+      return;
+    }
+    if (artwork == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('Add an artwork before saving.')));
+      return;
+    }
+    final title = await _askTitle();
+    if (title == null || !mounted) return;
+
+    setState(() => _saving = true);
+    _draftId ??= newId('d');
+    try {
+      final draft = await DraftSaveService(drafts: deps.drafts, storage: deps.artworkStorage).saveDraft(
+        draft: Draft(
+          id: _draftId!,
+          ownerUid: user.uid,
+          title: title,
+          design: viewModel.design,
+          updatedAt: DateTime.now(),
+        ),
+        artworkPng: await encodeArtworkPng(artwork.image),
+      );
+      _draftTitle = title;
+      messenger.showSnackBar(SnackBar(
+        content: Text('Saved "${draft.title}"'),
+        action: SnackBarAction(
+          label: 'View in Exhibit',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ExhibitScreen(initialSelection: {draft.id}),
+          )),
+        ),
+      ));
+    } catch (e) {
+      debugPrint('Save failed: $e');
+      messenger.showSnackBar(SnackBar(
+        content: Text("Couldn't save: $e"),
+        action: SnackBarAction(label: 'Retry', onPressed: _save),
+      ));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<String?> _askTitle() {
+    final controller = TextEditingController(text: _draftTitle);
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        void submit() {
+          final title = controller.text.trim();
+          if (title.isNotEmpty) Navigator.pop(context, title);
+        }
+
+        return AlertDialog(
+          title: const Text('Save draft'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 100,
+            decoration: const InputDecoration(labelText: 'Title', hintText: 'e.g. Sunset study'),
+            onSubmitted: (_) => submit(),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(onPressed: submit, child: const Text('Save')),
+          ],
+        );
+      },
+    ).whenComplete(controller.dispose);
   }
 
   /// Reopens the crop on the current artwork's original photo.
@@ -348,6 +447,16 @@ class _EditorScreenState extends State<EditorScreen> {
                 tooltip: 'Firebase Diagnostics',
                 onPressed: _showFirebaseTestDialog,
               ),
+              IconButton(
+                icon: _saving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.bookmark_add_outlined),
+                tooltip: 'Save draft',
+                onPressed: _saving ? null : _save,
+              ),
               ExportButton(
                 boundaryKey: _exportKey,
                 message: () => 'Framed with PickAFrame\n${designSummaryText(viewModel.design)}',
@@ -371,59 +480,65 @@ class _EditorScreenState extends State<EditorScreen> {
                   )
                 : null,
           ),
-          body: Column(
-            children: [
-              // FRAME PREVIEW
-              Expanded(
-                child: FrameRenderer(
-                  design: design,
-                  light: viewModel.light,
-                  finishImages: viewModel.finishImages,
-                  shaderResources: viewModel.shaderResources,
-                  artworkImage: viewModel.artwork?.image,
-                  wallColor: Colors.blueGrey[900]!,
-                  exportKey: _exportKey,
+          body: WorkspaceLayout(
+            preview: Column(
+              children: [
+                // FRAME PREVIEW
+                Expanded(
+                  child: FrameRenderer(
+                    design: design,
+                    light: viewModel.light,
+                    finishImages: viewModel.finishImages,
+                    shaderResources: viewModel.shaderResources,
+                    artworkImage: viewModel.artwork?.image,
+                    wallColor: Colors.blueGrey[900]!,
+                    exportKey: _exportKey,
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Artwork ${formatSize(design.artworkMm)}  ·  Overall ${formatSize(design.outerMm)}'
+                    '${switch (viewModel.catalogMoulding) {
+                      final m? => '\n${m.name} · RM ${m.priceFor(design).toStringAsFixed(2)} moulding',
+                      null => '',
+                    }}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
                 ),
-              ),
-              // CONTROL PANEL
-              Theme(
-                data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-                // Material, so the Mat tab's switch shows its ink on the dark panel.
-                child: Material(
-                  color: Colors.black87,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: SafeArea(
-                      top: false,
-                      child: DefaultTabController(
-                        length: 2,
-                        child: Column(
-                          children: [
-                            const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
-                            SizedBox(
-                              height: 290,
-                              child: TabBarView(
-                                children: [
-                                  FramePanel(viewModel: viewModel),
-                                  MatPanel(viewModel: viewModel),
-                                ],
-                              ),
+              ],
+            ),
+            // CONTROL PANEL
+            controls: Theme(
+              data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+              // Material, so the Mat tab's switch shows its ink on the dark panel.
+              child: Material(
+                color: Colors.black87,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SafeArea(
+                    top: false,
+                    child: DefaultTabController(
+                      length: 2,
+                      child: Column(
+                        children: [
+                          const TabBar(tabs: [Tab(text: 'Frame'), Tab(text: 'Mat')]),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                FramePanel(viewModel: viewModel),
+                                MatPanel(viewModel: viewModel),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         );
       },

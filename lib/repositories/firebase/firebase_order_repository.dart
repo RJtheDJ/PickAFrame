@@ -42,4 +42,9 @@ class FirestoreOrderRepository implements OrderRepository {
   Future<void> updateStage(String orderId, OrderStage stage) async{
     await _ordersCollection.doc(orderId).update({'stage': stage.name});
   }
-}  
+
+  @override
+  Future<void> setQuote(String orderId, double quoteRm) async {
+    await _ordersCollection.doc(orderId).update({'quoteRm': quoteRm});
+  }
+}

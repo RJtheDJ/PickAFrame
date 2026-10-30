@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
+import '../../models/order.dart';
+import '../../models/user_profile.dart';
+import '../../models/vendor.dart';
 import '../../widgets/catalog/catalog_bottom_nav_bar.dart';
 import '../../widgets/orders/order_sample_data.dart';
 import '../catalog/catalog_screen.dart';
 import '../editor_screen.dart';
+import '../exhibit_screen.dart';
+import 'new_order_screen.dart';
 import 'order_detail_screen.dart';
 
 /// Order list screen (`My Orders` — Image 3 structure) shown when the user taps
@@ -25,9 +31,61 @@ class MyOrdersScreen extends StatefulWidget {
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   bool _showPastOrders = false;
 
+  late final _deps = AppScope.of(context);
+  late final Stream<UserProfile?> _user = _deps.auth.watchUser();
+  late final Stream<List<Vendor>> _vendors = _deps.vendors.watchVendors();
+  Stream<List<FramingOrder>>? _orders;
+  String? _ordersKey;
+
+  /// Frame shops see the orders sent to them; everyone else their own.
+  Stream<List<FramingOrder>> _ordersFor(UserProfile user) {
+    final vendorId = user.vendorId;
+    final key = vendorId == null ? 'customer:${user.uid}' : 'vendor:$vendorId';
+    if (key != _ordersKey) {
+      _ordersKey = key;
+      _orders = vendorId == null
+          ? _deps.orders.watchCustomerOrders(user.uid)
+          : _deps.orders.watchVendorOrders(vendorId);
+    }
+    return _orders!;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final orders = OrderExampleItem.sampleOrders
+    return StreamBuilder<UserProfile?>(
+      stream: _user,
+      builder: (context, userSnapshot) => StreamBuilder<List<Vendor>>(
+        stream: _vendors,
+        builder: (context, vendorSnapshot) {
+          final user = userSnapshot.data;
+          return StreamBuilder<List<FramingOrder>>(
+            stream: user == null ? null : _ordersFor(user),
+            builder: (context, orderSnapshot) {
+              final names = {for (final v in vendorSnapshot.data ?? const <Vendor>[]) v.id: v.name};
+              final items = orderSnapshot.data
+                  ?.map((o) => OrderExampleItem.fromOrder(o, workshopName: names[o.vendorId] ?? 'Workshop'))
+                  .toList();
+              return _buildScaffold(
+                user: user,
+                userKnown: userSnapshot.connectionState != ConnectionState.waiting,
+                allOrders: items,
+                failed: orderSnapshot.hasError,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildScaffold({
+    required UserProfile? user,
+    required bool userKnown,
+    required List<OrderExampleItem>? allOrders,
+    required bool failed,
+  }) {
+    final isShop = user?.vendorId != null;
+    final orders = (allOrders ?? const <OrderExampleItem>[])
         .where((o) => o.isPastOrder == _showPastOrders)
         .toList();
 
@@ -58,8 +116,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'My Orders',
+                  Text(
+                    isShop ? 'Incoming Orders' : 'My Orders',
                     style: TextStyle(
                       color: AppPalette.obsidianBlack,
                       fontSize: 18,
@@ -67,6 +125,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       letterSpacing: -0.3,
                     ),
                   ),
+                  const Spacer(),
+                  if (user != null && !isShop)
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: AppPalette.obsidianBlack),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('New order'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NewOrderScreen()),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -101,7 +169,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
             // 3. Clickable Order Cards List
             Expanded(
-              child: ListView.separated(
+              child: _emptyState(user: user, userKnown: userKnown, allOrders: allOrders, failed: failed, isShop: isShop) ??
+                  ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 itemCount: orders.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 14),
@@ -109,13 +178,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   final order = orders[index];
                   return Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 480),
+                      constraints: const BoxConstraints(maxWidth: 720),
                       child: _OrderListCard(
                         order: order,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => OrderDetailScreen(order: order),
+                              builder: (_) => OrderDetailScreen(order: order, isShop: isShop),
                             ),
                           );
                         },
@@ -145,12 +214,48 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           if (index == 0) {
             Navigator.of(context).popUntil((route) => route.isFirst);
           }
+          if (index == 2) {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExhibitScreen()));
+          }
         },
         onCenterAddTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const EditorScreen()),
           );
         },
+      ),
+    );
+  }
+}
+
+extension on _MyOrdersScreenState {
+  /// A message instead of the list, or null to show the list.
+  Widget? _emptyState({
+    required UserProfile? user,
+    required bool userKnown,
+    required List<OrderExampleItem>? allOrders,
+    required bool failed,
+    required bool isShop,
+  }) {
+    String? message;
+    if (!userKnown || (user != null && allOrders == null && !failed)) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (user == null) {
+      message = 'Sign in to see your orders.';
+    } else if (failed) {
+      message = "Couldn't load orders. Check your connection.";
+    } else if (!allOrders!.any((o) => o.isPastOrder == _showPastOrders)) {
+      message = _showPastOrders
+          ? 'No completed orders yet.'
+          : isShop
+              ? 'No active orders. New orders from customers appear here.'
+              : 'No active orders. Tap "New order" to send a saved draft to a workshop.';
+    }
+    if (message == null) return null;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppPalette.coolSlate)),
       ),
     );
   }

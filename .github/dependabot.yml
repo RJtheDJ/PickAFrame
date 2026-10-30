@@ -1,0 +1,12 @@
+# Weekly checks for vulnerable or outdated dependencies (security list #20).
+version: 2
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /cloudflare/artwork-worker
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /firebase
+    schedule: { interval: weekly }

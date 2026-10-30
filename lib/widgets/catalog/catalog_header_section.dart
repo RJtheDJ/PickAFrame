@@ -11,6 +11,7 @@ class CatalogHeaderSection extends StatelessWidget {
   const CatalogHeaderSection({
     super.key,
     required this.selectedTabIndex,
+    this.draftCount,
     required this.onTabSelected,
     required this.searchController,
     required this.onSearchChanged,
@@ -19,6 +20,9 @@ class CatalogHeaderSection extends StatelessWidget {
   });
 
   final int selectedTabIndex;
+
+  /// The user's saved drafts, or null when signed out / still loading.
+  final int? draftCount;
   final ValueChanged<int> onTabSelected;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
@@ -182,7 +186,7 @@ class CatalogHeaderSection extends StatelessWidget {
                     Expanded(
                       child: _SegmentedTabButton(
                         icon: Icons.folder_special_outlined,
-                        label: 'Drafts (12)',
+                        label: draftCount == null ? 'Drafts' : 'Drafts ($draftCount)',
                         selected: selectedTabIndex == 2,
                         onTap: () => onTabSelected(2),
                       ),

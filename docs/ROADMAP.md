@@ -37,14 +37,14 @@ Legend: ✅ done · 🟡 in progress / groundwork in place · ⬜ not started
 
 | # | Feature | Owner | Status | What's needed |
 |---|---|---|---|---|
-| 1 | Save drafts: images to Cloudflare R2, metadata to Firestore | Kah Han | 🟡 | Worker is a starter project only. Full task list: [plans/r2-exhibition.md](plans/r2-exhibition.md), Tasks 1–2. |
-| 2 | Saved Drafts screen + Exhibition View (several framed pieces on one wall) | Kah Han | ⬜ | Same plan, Task 3. Agree with RJ how it relates to the virtual gallery wall. |
+| 1 | Save drafts: images to Cloudflare R2, metadata to Firestore | Kah Han / RJ | ✅ | Worker (Kah Han) + Save button (RJ). See [plans/r2-exhibition.md](plans/r2-exhibition.md). |
+| 2 | Saved Drafts screen + Exhibition View (several framed pieces on one wall) | RJ | ✅ | Exhibit tab and the catalogue's Drafts tab. |
 | 3 | Virtual gallery wall | RJ | 🟡 | One piece per room works today (`RoomPreview`). |
 | 4 | Sign up / log in screens (email, Google) + role selection | Kah Han | 🟡 | Auth methods exist; screens not built. Plan Phase 2. |
-| 5 | Catalogue behaviour: real filters, sort, search; buttons wired | Jasper | 🟡 | Layout is done; buttons are styled with callbacks still to fill in. |
+| 5 | Catalogue behaviour: real filters, sort, search; buttons wired | Jasper / RJ | ✅ | Live from the Firestore `mouldings` collection; "+" opens the editor with that moulding. |
 | 6 | App shell: bottom navigation, role-based start screen, router | — | ⬜ | See ARCHITECTURE.md, "Screens and navigation". |
 | 7 | Order specification sheet | Jasper | 🟡 | `describeDesign` gives the lines. Add rebate/glass/backing cut sizes and a PDF or image export. |
-| 8 | Workshop directory on a map | Kah Han | 🟡 | `Vendor` + `VendorRepository` exist; map placeholder card in the catalogue. Add `google_maps_flutter` and a few real KL workshops. |
+| 8 | Workshop directory on a map | Kah Han / RJ | ✅ | Map tab shows every registered workshop and its mouldings (Android/iOS only). |
 
 The proposal's Gantt chart had testing until 19 Oct and demo &
 documentation on 20–27 Oct.
@@ -54,10 +54,10 @@ documentation on 20–27 Oct.
 | Feature | Area | Status | Notes |
 |---|---|---|---|
 | Vendor onboarding with Google Maps location pin | Backend | 🟡 | `UserRole.needsLocation`; plan Phase 3 |
-| Send order to a workshop; production tracker (Cut → Assembled → Glazed → Ready) | Backend + UI | 🟡 | `FramingOrder`, `OrderStage`, `OrderRepository` |
-| Unified frame catalogue data: search & filters by material, width, rebate, price | Engine + Backend | ⬜ | Mouldings need a code, vendor, rebate depth and price per metre; currently the built-in finishes. |
+| Send order to a workshop; production tracker (Cut → Assembled → Glazed → Ready) | Backend + UI | ✅ | New order screen; shops confirm the quote and move the stage. |
+| Unified frame catalogue data: search & filters by material, width, rebate, price | Engine + Backend | ✅ | `CatalogMoulding`; shops manage theirs in My mouldings (starter set of 6). |
 | Vendors upload their own mouldings | Engine + Backend | 🟡 | `tools/make_moulding_strip.py` does it offline; needs an in-app version. |
-| Quote / pricing from moulding length, mat and glass area | Engine | 🟡 | `FrameDesign.mouldingLengthMm` exists. Needs prices. |
+| Quote / pricing from moulding length, mat and glass area | Engine | 🟡 | Moulding estimate (price per metre × length) done; shop confirms. Mat and glass not priced. |
 | Glazing options (UV-protective, non-glare) and archival mat flags | Engine | ⬜ | Add to `FrameDesign`; show glass reflection in the renderer. |
 | In-room preview: photo scenes; a photo of the user's own wall with a scale reference | Engine | ⬜ | Drawn scenes are done. |
 | Virtual gallery wall extras: apply a preset to all, bulk cost | Engine + UI | ⬜ | |

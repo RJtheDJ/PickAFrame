@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
+import '../../models/catalog_moulding.dart';
+import '../../models/vendor.dart';
+import '../../view_models/exhibit_viewmodel.dart';
 import '../../widgets/catalog/catalog_bottom_nav_bar.dart';
 import '../../widgets/catalog/catalog_filter_sheet.dart';
 import '../../widgets/catalog/catalog_filter_sort_bar.dart';
@@ -8,8 +12,12 @@ import '../../widgets/catalog/catalog_header_section.dart';
 import '../../widgets/catalog/catalog_map_view.dart';
 import '../../widgets/catalog/moulding_grid_card.dart';
 import '../../widgets/catalog/workshop_map_placeholder.dart';
+import '../../widgets/exhibit/draft_card.dart';
+import '../auth/login_screen.dart';
 import '../editor_screen.dart';
+import '../exhibit_room_screen.dart';
 import '../exhibit_screen.dart';
+import '../mouldings/my_mouldings_screen.dart';
 import '../orders/my_orders_screen.dart';
 
 /// The 4 sort options for the Unified Frame Catalogue.
@@ -44,55 +52,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
   bool _showMapDirectory = true;
   CatalogMouldingItem? _selectedMoulding;
 
-  static const List<CatalogMouldingItem> _mouldingItems = [
-    CatalogMouldingItem(
-      id: 'walnut_35',
-      name: 'Walnut 35mm',
-      widthMm: 35,
-      rebateDepthMm: 14,
-      pricePerMetreRm: 38,
-      frameColor: Color(0xFF422618),
-      materialClass: 'Wood (Hardwood)',
-      workshopName: 'Atelier Bangsar Woodcraft',
-      workshopDistrict: 'Bangsar · 4.2 km',
-    ),
-    CatalogMouldingItem(
-      id: 'black_20',
-      name: 'Black 20mm',
-      widthMm: 20,
-      rebateDepthMm: 11,
-      pricePerMetreRm: 24,
-      frameColor: Color(0xFF141619),
-      materialClass: 'Aluminium Metal',
-      workshopName: 'Atelier Bangsar Woodcraft',
-      workshopDistrict: 'Bangsar · 4.2 km',
-    ),
-    CatalogMouldingItem(
-      id: 'gilded_50',
-      name: 'Gilded 50mm',
-      widthMm: 50,
-      rebateDepthMm: 25,
-      pricePerMetreRm: 96,
-      frameColor: Color(0xFF8C6D23),
-      materialClass: 'Gilded / Foil Leaf',
-      workshopName: 'Cheras Fine Mouldings & Gilded Arts',
-      workshopDistrict: 'Cheras · 9.0 km',
-    ),
-    CatalogMouldingItem(
-      id: 'oak_25',
-      name: 'Oak 25mm',
-      widthMm: 25,
-      rebateDepthMm: 14,
-      pricePerMetreRm: 31,
-      frameColor: Color(0xFFC59B6D),
-      materialClass: 'Wood (Hardwood)',
-      workshopName: 'Ampang Artisan Framing',
-      workshopDistrict: 'Ampang · 12.4 km',
-    ),
-  ];
+  late final _deps = AppScope.of(context);
+  late final Stream<List<CatalogMoulding>> _mouldings = _deps.mouldings.watchMouldings();
+  late final Stream<List<Vendor>> _vendors = _deps.vendors.watchVendors();
+
+  /// The user's drafts, for the Drafts tab.
+  late final ExhibitViewModel _drafts = ExhibitViewModel(
+    auth: _deps.auth,
+    drafts: _deps.drafts,
+    artworkStorage: _deps.artworkStorage,
+  );
 
   @override
   void dispose() {
+    _drafts.dispose();
     _searchController.dispose();
     _catalogScrollController.dispose();
     super.dispose();
@@ -259,13 +232,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 
-  List<CatalogMouldingItem> _computeVisibleItems() {
+  List<CatalogMouldingItem> _computeVisibleItems(List<CatalogMouldingItem> all) {
     final query = _searchController.text.trim().toLowerCase();
 
-    final filtered = _mouldingItems.where((item) {
+    final filtered = all.where((item) {
       if (query.isNotEmpty) {
         final matchesQuery = item.name.toLowerCase().contains(query) ||
-            item.materialClass.toLowerCase().contains(query);
+            item.materialClass.toLowerCase().contains(query) ||
+            item.workshopName.toLowerCase().contains(query);
         if (!matchesQuery) return false;
       }
       if (_filterState.materialClass != null &&
@@ -289,7 +263,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
     switch (_sortOption) {
       case CatalogSortOption.newest:
-        break; // Keep default catalogue order
+        break; // The repository already lists newest first
       case CatalogSortOption.priceLowToHigh:
         filtered.sort((a, b) => a.pricePerMetreRm.compareTo(b.pricePerMetreRm));
       case CatalogSortOption.priceHighToLow:
@@ -319,9 +293,94 @@ class _CatalogScreenState extends State<CatalogScreen> {
     });
   }
 
+  void _openEditor([CatalogMouldingItem? item]) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditorScreen(catalogMoulding: item?.moulding)),
+    );
+  }
+
+  /// Account menu: who is signed in, the shop's own mouldings, sign in/out.
+  void _openProfileSheet() {
+    final user = _deps.auth.currentUser;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppPalette.background,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: Text(user == null
+                  ? 'Not signed in'
+                  : (user.displayName.isNotEmpty ? user.displayName : user.email)),
+              subtitle: user?.role == null ? null : Text(user!.role!.label),
+            ),
+            if (user?.vendorId != null)
+              ListTile(
+                leading: const Icon(Icons.inventory_2_outlined),
+                title: const Text('My mouldings'),
+                subtitle: const Text('Add and edit what your shop sells'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyMouldingsScreen()));
+                },
+              ),
+            if (user == null)
+              ListTile(
+                leading: const Icon(Icons.login),
+                title: const Text('Log in'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Sign out'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _deps.auth.signOut();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Grid columns for the available width: 2 on phones, more on tablets.
+  static int _columnsFor(double width) => (width / 220).floor().clamp(2, 6);
+
   @override
   Widget build(BuildContext context) {
-    final visibleItems = _computeVisibleItems();
+    return StreamBuilder<List<Vendor>>(
+      stream: _vendors,
+      builder: (context, vendorSnapshot) => StreamBuilder<List<CatalogMoulding>>(
+        stream: _mouldings,
+        builder: (context, mouldingSnapshot) => ListenableBuilder(
+          listenable: _drafts,
+          builder: (context, _) => _buildScaffold(vendorSnapshot, mouldingSnapshot),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(
+    AsyncSnapshot<List<Vendor>> vendorSnapshot,
+    AsyncSnapshot<List<CatalogMoulding>> mouldingSnapshot,
+  ) {
+    final vendors = vendorSnapshot.data ?? const <Vendor>[];
+    final vendorById = {for (final v in vendors) v.id: v};
+    final allItems = [
+      for (final m in mouldingSnapshot.data ?? const <CatalogMoulding>[])
+        CatalogMouldingItem.fromMoulding(m, vendorById[m.vendorId]),
+    ];
+    final selected = switch (_selectedMoulding) {
+      final s? => allItems.where((item) => item.id == s.id).firstOrNull,
+      null => null,
+    };
 
     return Scaffold(
       backgroundColor: AppPalette.background,
@@ -331,6 +390,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             // Sticky Top Bar + Brand Row + Segmented Tabs + Search Input
             CatalogHeaderSection(
               selectedTabIndex: _selectedTopTab,
+              draftCount: _drafts.user == null ? null : _drafts.drafts?.length,
               onTabSelected: (index) => setState(() => _selectedTopTab = index),
               searchController: _searchController,
               onSearchChanged: (_) => setState(() {}),
@@ -343,146 +403,26 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   Navigator.of(context).pop();
                 }
               },
-              onProfileTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile & Role settings')),
-                );
-              },
+              onProfileTap: _openProfileSheet,
             ),
 
-            // Body Content switches between Catalog (0) and Map (KL) (1)
             Expanded(
-              child: _selectedTopTab == 1
-                  ? CatalogMapView(
-                      selectedMoulding: _selectedMoulding,
-                      onRouteToOrderTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const EditorScreen(),
-                          ),
-                        );
-                      },
-                    )
-                  : SingleChildScrollView(
-                      controller: _catalogScrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 480),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Filter & Sort Controls (starts with 0 filter chips)
-                              CatalogFilterSortBar(
-                                activeFilterChips: _activeFilterChips,
-                                sortLabel: _sortOption.label,
-                                onFiltersTap: _openFilterSheet,
-                                onRemoveChip: _removeFilterChip,
-                                onSortTap: _openSortSheet,
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              // 2×2 Moulding Catalogue Grid
-                              if (visibleItems.isEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 28,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppPalette.slateTintSurface,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: AppPalette.borderLight,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      const Icon(
-                                        Icons.filter_alt_off_outlined,
-                                        size: 26,
-                                        color: AppPalette.coolSlate,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'No mouldings match your active filters',
-                                        style: TextStyle(
-                                          color: AppPalette.obsidianBlack,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      TextButton(
-                                        onPressed: () => setState(
-                                          () => _filterState =
-                                              CatalogFilterState.empty,
-                                        ),
-                                        child: Text(
-                                          'Reset filters',
-                                          style: AppTheme.monoStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppPalette.midnightSlate,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: visibleItems.length,
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 12,
-                                    childAspectRatio: 0.72,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final item = visibleItems[index];
-                                    return MouldingGridCard(
-                                      item: item,
-                                      isSelected:
-                                          _selectedMoulding?.id == item.id,
-                                      onAddTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => const EditorScreen(),
-                                          ),
-                                        );
-                                      },
-                                      onCardTap: () => _onMouldingCardTap(item),
-                                    );
-                                  },
-                                ),
-
-                              if (_showMapDirectory) ...[
-                                const SizedBox(height: 16),
-
-                                // KL Workshop Map Directory Card:
-                                // - Shows origin workshop when a moulding card is clicked
-                                // - Clicking the map opens the full Map (KL) view (Image 2)
-                                WorkshopMapPlaceholder(
-                                  selectedMoulding: _selectedMoulding,
-                                  onCloseTap: () => setState(() {
-                                    _showMapDirectory = false;
-                                    _selectedMoulding = null;
-                                  }),
-                                  onMapTap: () {
-                                    setState(() => _selectedTopTab = 1);
-                                  },
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+              child: switch (_selectedTopTab) {
+                1 => CatalogMapView(
+                    vendors: vendors,
+                    items: allItems,
+                    selectedMoulding: selected,
+                    onOpenMoulding: _openEditor,
+                  ),
+                2 => _buildDraftsTab(),
+                _ => _buildCatalogTab(
+                    allItems,
+                    selected,
+                    vendors.length,
+                    loading: !mouldingSnapshot.hasData && !mouldingSnapshot.hasError,
+                    failed: mouldingSnapshot.hasError,
+                  ),
+              },
             ),
           ],
         ),
@@ -512,11 +452,191 @@ class _CatalogScreenState extends State<CatalogScreen> {
           }
           setState(() => _selectedBottomTab = index);
         },
-        onCenterAddTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const EditorScreen()),
-          );
-        },
+        onCenterAddTap: _openEditor,
+      ),
+    );
+  }
+
+  Widget _buildCatalogTab(
+    List<CatalogMouldingItem> allItems,
+    CatalogMouldingItem? selected,
+    int workshopCount, {
+    required bool loading,
+    required bool failed,
+  }) {
+    final visibleItems = _computeVisibleItems(allItems);
+    return SingleChildScrollView(
+      controller: _catalogScrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Filter & Sort Controls (starts with 0 filter chips)
+              CatalogFilterSortBar(
+                activeFilterChips: _activeFilterChips,
+                sortLabel: _sortOption.label,
+                onFiltersTap: _openFilterSheet,
+                onRemoveChip: _removeFilterChip,
+                onSortTap: _openSortSheet,
+              ),
+
+              const SizedBox(height: 14),
+
+              if (loading)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (failed || visibleItems.isEmpty)
+                _EmptyCatalog(
+                  icon: failed
+                      ? Icons.cloud_off_outlined
+                      : (allItems.isEmpty ? Icons.inventory_2_outlined : Icons.filter_alt_off_outlined),
+                  message: failed
+                      ? "Couldn't load the catalogue. Check your connection."
+                      : allItems.isEmpty
+                          ? 'No mouldings listed yet. Frame shops add theirs from the profile menu.'
+                          : 'No mouldings match your active filters',
+                  onReset: allItems.isEmpty || failed
+                      ? null
+                      : () => setState(() => _filterState = CatalogFilterState.empty),
+                )
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) => GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: visibleItems.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: _columnsFor(constraints.maxWidth),
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = visibleItems[index];
+                      return MouldingGridCard(
+                        item: item,
+                        isSelected: selected?.id == item.id,
+                        onAddTap: () => _openEditor(item),
+                        onCardTap: () => _onMouldingCardTap(item),
+                      );
+                    },
+                  ),
+                ),
+
+              if (_showMapDirectory) ...[
+                const SizedBox(height: 16),
+
+                // KL Workshop Map Directory Card:
+                // - Shows origin workshop when a moulding card is clicked
+                // - Clicking the map opens the full Map (KL) view
+                WorkshopMapPlaceholder(
+                  selectedMoulding: selected,
+                  workshopCount: workshopCount,
+                  onCloseTap: () => setState(() {
+                    _showMapDirectory = false;
+                    _selectedMoulding = null;
+                  }),
+                  onMapTap: () {
+                    setState(() => _selectedTopTab = 1);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The user's saved drafts; tapping one hangs it in the Exhibit room.
+  Widget _buildDraftsTab() {
+    final drafts = _drafts.drafts;
+    if (_drafts.userKnown && _drafts.user == null) {
+      return const _EmptyCatalog(icon: Icons.lock_outline, message: 'Sign in to see your saved drafts.');
+    }
+    if (_drafts.error != null) {
+      return const _EmptyCatalog(icon: Icons.cloud_off_outlined, message: "Couldn't load your drafts.");
+    }
+    if (drafts == null) return const Center(child: CircularProgressIndicator());
+    if (drafts.isEmpty) {
+      return const _EmptyCatalog(
+        icon: Icons.collections_outlined,
+        message: 'No saved drafts yet. Frame an artwork with + and tap Save.',
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _columnsFor(constraints.maxWidth),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.78,
+        ),
+        itemCount: drafts.length,
+        itemBuilder: (context, i) => DraftCard(
+          viewModel: _drafts,
+          draft: drafts[i],
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ExhibitRoomScreen(exhibit: _drafts, drafts: [drafts[i]]),
+          )),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCatalog extends StatelessWidget {
+  const _EmptyCatalog({required this.icon, required this.message, this.onReset});
+
+  final IconData icon;
+  final String message;
+  final VoidCallback? onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
+      decoration: BoxDecoration(
+        color: AppPalette.slateTintSurface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppPalette.borderLight),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 26, color: AppPalette.coolSlate),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppPalette.obsidianBlack,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (onReset != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onReset,
+              child: Text(
+                'Reset filters',
+                style: AppTheme.monoStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.midnightSlate,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

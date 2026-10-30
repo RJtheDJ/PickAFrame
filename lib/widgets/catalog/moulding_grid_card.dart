@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_theme.dart';
+import '../../data/finish_catalog.dart';
+import '../../models/catalog_moulding.dart';
+import '../../models/vendor.dart';
 
 /// Data model representing a frame moulding card in the Unified Frame Catalogue.
 class CatalogMouldingItem {
@@ -14,7 +17,26 @@ class CatalogMouldingItem {
     required this.materialClass,
     required this.workshopName,
     required this.workshopDistrict,
+    this.moulding,
+    this.vendor,
   });
+
+  /// A card for a shop's catalogue moulding; [vendor] is null while the
+  /// directory loads or if the shop has gone.
+  factory CatalogMouldingItem.fromMoulding(CatalogMoulding moulding, Vendor? vendor) =>
+      CatalogMouldingItem(
+        id: moulding.id,
+        name: moulding.name,
+        widthMm: moulding.faceWidthMm,
+        rebateDepthMm: moulding.rebateDepthMm.round(),
+        pricePerMetreRm: moulding.pricePerMetreRm.round(),
+        frameColor: finishSwatchColor(moulding.finish),
+        materialClass: moulding.materialClass,
+        workshopName: vendor?.name ?? 'Workshop',
+        workshopDistrict: vendor?.address ?? '',
+        moulding: moulding,
+        vendor: vendor,
+      );
 
   final String id;
   final String name;
@@ -25,6 +47,10 @@ class CatalogMouldingItem {
   final String materialClass;
   final String workshopName;
   final String workshopDistrict;
+
+  /// The live catalogue moulding behind this card.
+  final CatalogMoulding? moulding;
+  final Vendor? vendor;
 
   String get widthLabel => '${widthMm.round()}mm';
 }
@@ -76,50 +102,55 @@ class MouldingGridCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Clean Square Moulding Preview Box
-            AspectRatio(
-              aspectRatio: 1.05,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppPalette.slateTintSurface,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppPalette.obsidianBlack.withValues(alpha: 0.35)
-                        : AppPalette.borderLight.withValues(alpha: 0.7),
-                    width: 0.8,
-                  ),
-                ),
-                child: CustomPaint(
-                  painter: _DiagonalGuidePainter(
-                    color: AppPalette.borderLight.withValues(alpha: 0.85),
-                  ),
-                  child: Center(
-                    child: FractionallySizedBox(
-                      widthFactor: 0.54,
-                      heightFactor: 0.54,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppPalette.background,
-                          border: Border.all(
-                            color: item.frameColor,
-                            width: _borderWidthForLabel(item.widthLabel),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+            // 1. Clean Square Moulding Preview Box: takes the height left over,
+            // so the card never overflows on narrow phones.
+            Expanded(
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1.05,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppPalette.slateTintSurface,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppPalette.obsidianBlack.withValues(alpha: 0.35)
+                            : AppPalette.borderLight.withValues(alpha: 0.7),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: CustomPaint(
+                      painter: _DiagonalGuidePainter(
+                        color: AppPalette.borderLight.withValues(alpha: 0.85),
+                      ),
+                      child: Center(
+                        child: FractionallySizedBox(
+                          widthFactor: 0.54,
+                          heightFactor: 0.54,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppPalette.background,
+                              border: Border.all(
+                                color: item.frameColor,
+                                width: (item.widthMm / 5).clamp(3.0, 10.0),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppPalette.obsidianBlack.withValues(alpha: 0.08),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          item.widthLabel,
-                          style: AppTheme.monoStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppPalette.coolSlate,
+                            alignment: Alignment.center,
+                            child: Text(
+                              item.widthLabel,
+                              style: AppTheme.monoStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppPalette.coolSlate,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -143,8 +174,6 @@ class MouldingGridCard extends StatelessWidget {
                 letterSpacing: -0.2,
               ),
             ),
-
-            const Spacer(),
 
             const Divider(height: 12, thickness: 0.8, color: AppPalette.borderLight),
 
@@ -189,9 +218,7 @@ class MouldingGridCard extends StatelessWidget {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                     ),
                     child: const Icon(Icons.add_rounded, size: 19, color: Colors.white),
                   ),
@@ -202,13 +229,6 @@ class MouldingGridCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static double _borderWidthForLabel(String widthLabel) {
-    if (widthLabel.contains('50')) return 9.5;
-    if (widthLabel.contains('35')) return 7.5;
-    if (widthLabel.contains('25')) return 6.0;
-    return 5.0;
   }
 }
 
@@ -249,6 +269,5 @@ class _DiagonalGuidePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DiagonalGuidePainter oldDelegate) =>
-      oldDelegate.color != color;
+  bool shouldRepaint(covariant _DiagonalGuidePainter oldDelegate) => oldDelegate.color != color;
 }

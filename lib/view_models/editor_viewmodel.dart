@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/finish_catalog.dart';
 import '../models/artwork.dart';
+import '../models/catalog_moulding.dart';
 import '../models/frame_design.dart';
 import '../models/frame_finish.dart';
 import '../models/frame_profile.dart';
@@ -90,18 +91,18 @@ class EditorViewModel extends ChangeNotifier {
 
   void setColor(Color color) {
     _paintColor = color;
-    _update(_design.copyWith(finish: ColorFinish(color)));
+    _update(_design.copyWith(finish: ColorFinish(color), moulding: _design.moulding.copyWith()));
   }
 
   void selectWood(WoodFinish wood) {
     _wood = wood;
-    _update(_design.copyWith(finish: wood));
+    _update(_design.copyWith(finish: wood, moulding: _design.moulding.copyWith()));
     _loadImages(assetsOf(wood)!);
   }
 
   void selectMetal(MetalFinish metal) {
     _metal = metal;
-    _update(_design.copyWith(finish: metal));
+    _update(_design.copyWith(finish: metal, moulding: _design.moulding.copyWith()));
     _loadImages(assetsOf(metal)!);
   }
 
@@ -113,6 +114,29 @@ class EditorViewModel extends ChangeNotifier {
       moulding: _design.moulding.copyWith(faceWidthMm: moulding.faceWidthMm),
     ));
     _loadImages(assetsOf(moulding)!);
+  }
+
+  /// The catalogue moulding the frame was started from, while the frame still
+  /// matches it (any change to profile, width or finish makes it custom).
+  CatalogMoulding? get catalogMoulding =>
+      _catalogMoulding?.id == _design.moulding.catalogId ? _catalogMoulding : null;
+  CatalogMoulding? _catalogMoulding;
+
+  /// Frames the artwork with a shop's catalogue moulding.
+  void applyCatalogMoulding(CatalogMoulding moulding) {
+    _catalogMoulding = moulding;
+    switch (moulding.finish) {
+      case ColorFinish(:final color):
+        _paintColor = color;
+      case final WoodFinish wood:
+        _wood = wood;
+      case final MetalFinish metal:
+        _metal = metal;
+      case final PhotoMouldingFinish photo:
+        _photoMoulding = photo;
+    }
+    _update(moulding.applyTo(_design));
+    if (assetsOf(moulding.finish) case final assets?) _loadImages(assets);
   }
 
   void setLightAzimuth(double degrees) {

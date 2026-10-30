@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../app/app_dependencies.dart';
 import '../app/app_theme.dart';
-import '../models/draft.dart';
-import '../models/units.dart';
-import '../rendering/lighting.dart';
 import '../view_models/exhibit_viewmodel.dart';
-import '../widgets/frame_renderer.dart';
+import '../widgets/exhibit/draft_card.dart';
 import 'exhibit_room_screen.dart';
 
 /// Exhibit tab: pick saved drafts, then hang them together in a room.
@@ -106,89 +103,11 @@ class _ExhibitScreenState extends State<ExhibitScreen> {
         childAspectRatio: 0.78,
       ),
       itemCount: drafts.length,
-      itemBuilder: (context, i) => _DraftCard(viewModel: viewModel, draft: drafts[i]),
-    );
-  }
-}
-
-class _DraftCard extends StatelessWidget {
-  const _DraftCard({required this.viewModel, required this.draft});
-
-  final ExhibitViewModel viewModel;
-  final Draft draft;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = viewModel.isSelected(draft.id);
-    final piece = viewModel.pieceFor(draft);
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: draft.title,
-      child: InkWell(
-        onTap: () => viewModel.toggle(draft.id),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppPalette.obsidianBlack : AppPalette.borderLight,
-              width: selected ? 2 : 1,
-            ),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: FrameRenderer(
-                        design: draft.design,
-                        light: const Light(),
-                        finishImages: piece.finishImages,
-                        shaderResources: viewModel.shaderResources,
-                        artworkImage: piece.artwork,
-                        wallColor: AppPalette.surfaceLight,
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Icon(
-                        selected ? Icons.check_circle : Icons.circle_outlined,
-                        color: selected ? AppPalette.obsidianBlack : AppPalette.borderMedium,
-                      ),
-                    ),
-                    if (viewModel.artworkFailed(draft.id))
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.refresh, size: 16),
-                          label: const Text("Image didn't load · Retry"),
-                          onPressed: () => viewModel.retryArtwork(draft),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                draft.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600, color: AppPalette.obsidianBlack),
-              ),
-              Text(
-                formatSize(draft.design.outerMm),
-                style: const TextStyle(fontSize: 12, color: AppPalette.mutedZinc),
-              ),
-            ],
-          ),
-        ),
+      itemBuilder: (context, i) => DraftCard(
+        viewModel: viewModel,
+        draft: drafts[i],
+        selected: viewModel.isSelected(drafts[i].id),
+        onTap: () => viewModel.toggle(drafts[i].id),
       ),
     );
   }

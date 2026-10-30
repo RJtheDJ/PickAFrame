@@ -92,3 +92,22 @@ const photoMouldings = [
     faceWidthMm: 60,
   ),
 ];
+
+/// One colour standing in for [finish] in small previews (catalogue cards,
+/// map pins). Wood colours are the average of each veneer texture.
+Color finishSwatchColor(FrameFinish finish) => switch (finish) {
+      ColorFinish(:final color) || MetalFinish(:final color) => color,
+      WoodFinish(:final id) => _woodSwatches[id] ?? const Color(0xFFA17E57),
+      PhotoMouldingFinish() => const Color(0xFFA8842F),
+    };
+
+const _woodSwatches = {
+  'cherry': Color(0xFFE0AF83),
+  'teak': Color(0xFFAF8156),
+  'oak': Color(0xFFA17E57),
+  'white_oak': Color(0xFF907962),
+  'maple': Color(0xFFE3D4B8),
+  'rosewood': Color(0xFF6D3210),
+  'black_oak': Color(0xFF6B6157),
+  'ebonised': Color(0xFF55504D),
+};

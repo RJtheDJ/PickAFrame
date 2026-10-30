@@ -7,6 +7,7 @@ import '../view_models/room_preview_viewmodel.dart';
 import '../widgets/export_button.dart';
 import '../widgets/preview/room_panel.dart';
 import '../widgets/room_preview.dart';
+import '../widgets/workspace_layout.dart';
 
 /// The picked drafts hung together in a room. Leaving never changes or
 /// deletes the drafts.
@@ -49,31 +50,25 @@ class _ExhibitRoomScreenState extends State<ExhibitRoomScreen> {
           foregroundColor: Colors.white,
           actions: [ExportButton(boundaryKey: _exportKey, message: _shareMessage)],
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: RoomPreview(
-                room: room,
-                pieces: [for (final draft in widget.drafts) widget.exhibit.pieceFor(draft)],
-                shaderResources: widget.exhibit.shaderResources,
-                exportKey: _exportKey,
+        body: WorkspaceLayout(
+          controlsHeight: 300,
+          preview: RoomPreview(
+            room: room,
+            pieces: [for (final draft in widget.drafts) widget.exhibit.pieceFor(draft)],
+            shaderResources: widget.exhibit.shaderResources,
+            exportKey: _exportKey,
+          ),
+          controls: Theme(
+            data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+            // Material, so list tiles' ink shows on the dark panel.
+            child: Material(
+              color: Colors.black87,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SafeArea(top: false, child: RoomPanel(room: room)),
               ),
             ),
-            Theme(
-              data: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-              // Material, so list tiles' ink shows on the dark panel.
-              child: Material(
-                color: Colors.black87,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SafeArea(
-                    top: false,
-                    child: SizedBox(height: 300, child: RoomPanel(room: room)),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
