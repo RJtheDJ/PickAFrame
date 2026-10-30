@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_dependencies.dart';
 import '../../app/app_theme.dart';
 import '../../models/user_profile.dart';
+import '../../views/auth/auth_navigation.dart';
 
 /// Brand navigation bar for Screen 1 (Welcome & Discovery / Logged-in Home).
 ///
@@ -18,7 +19,6 @@ class WelcomeTopBar extends StatelessWidget {
   final VoidCallback onLoginTap;
 
   void _showUserAccountSheet(BuildContext context, UserProfile user) {
-    final auth = AppScope.of(context).auth;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppPalette.background,
@@ -103,7 +103,7 @@ class WelcomeTopBar extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     Navigator.of(sheetContext).pop();
-                    await auth.signOut();
+                    await signOutAndReturnToWelcome(context);
                   },
                   icon: const Icon(
                     Icons.logout_rounded,

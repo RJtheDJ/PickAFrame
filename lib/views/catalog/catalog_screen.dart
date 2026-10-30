@@ -13,6 +13,7 @@ import '../../widgets/catalog/catalog_map_view.dart';
 import '../../widgets/catalog/moulding_grid_card.dart';
 import '../../widgets/catalog/workshop_map_placeholder.dart';
 import '../../widgets/exhibit/draft_card.dart';
+import '../auth/auth_navigation.dart';
 import '../auth/login_screen.dart';
 import '../editor_screen.dart';
 import '../exhibit_room_screen.dart';
@@ -341,7 +342,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 title: const Text('Sign out'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  await _deps.auth.signOut();
+                  await signOutAndReturnToWelcome(context);
                 },
               ),
           ],
